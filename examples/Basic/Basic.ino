@@ -68,7 +68,9 @@ void setup()
   */
 
   /** To send sticker
-   
+   * See https://devdocs.line.me/files/sticker_list.pdf for STKPKGID (Sticker Package ID).
+   * See https://devdocs.line.me/files/sticker_list.pdf for STKID (Sticker ID).
+  
     client.sticker.package_id = 2;
     client.sticker.id = 157;
 

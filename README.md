@@ -50,6 +50,11 @@ Go to menu **Files** -> **Examples** -> **ESP-Line-Notify-main** and choose one 
 
   client.token = "Your Line Notify Access Token";
   client.message = "Hello world";
+  
+  //The image to send
+  client.image.file.path = "/test.jpg";
+  client.image.file.storage_type = LineNotify_Storage_Type_Flash; // LineNotify_Storage_Type_Flash or LineNotify_Storage_Type_SD
+  client.image.file.name = "test.jpg";
 
   LineNotiFySendingResult result = lineNotify.send(client);
 
