@@ -1,0 +1,31 @@
+######################################
+# Syntax Coloring Map ESP Line Notify
+######################################
+
+#######################################
+# Classes and Structured Type (KEYWORD1)
+#######################################
+
+LineNotify  KEYWORD1
+LineNotiFyClient    KEYWORD1
+
+###############################################
+# Methods and Functions (KEYWORD2)
+###############################################
+
+send    KEYWORD2
+sdBegin KEYWORD2
+
+#######################################
+# Struct (LITERAL1)
+#######################################
+
+LineNotifySendingResult LITERAL1
+LineNotify_Sending_None LITERAL1
+LineNotify_Sending_Begin    LITERAL1
+LineNotify_Sending_In_Progress  LITERAL1
+LineNotify_Sending_Upload   LITERAL1
+LineNotify_Sending_Error    LITERAL1
+LineNotify_Sending_Success  LITERAL1
+LineNotify_Storage_Type_Flash   LITERAL1
+LineNotify_Storage_Type_SD  LITERAL1
