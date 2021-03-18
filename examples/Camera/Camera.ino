@@ -57,32 +57,11 @@ void setup()
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 
-  //Change to match your pin configuration between OV2640 Camera and ESP32 connection
-  //This config is for ThaiEasyElec's Camera Expansion for ESPino32 (OV2640)
   camera_config_t camera_config;
-  camera_config.ledc_channel = LEDC_CHANNEL_0;
-  camera_config.ledc_timer = LEDC_TIMER_0;
-  camera_config.pin_d0 = 33;
-  camera_config.pin_d1 = 39;
-  camera_config.pin_d2 = 36;
-  camera_config.pin_d3 = 32;
-  camera_config.pin_d4 = 34;
-  camera_config.pin_d5 = 35;
-  camera_config.pin_d6 = 04;
-  camera_config.pin_d7 = 15;
-  camera_config.pin_xclk = 13;
-  camera_config.pin_pclk = 12;
-  camera_config.pin_vsync = 14;
-  camera_config.pin_href = 27;
-  camera_config.pin_sscb_sda = 21;
-  camera_config.pin_sscb_scl = 22;
-  camera_config.pin_reset = 25;
-  camera_config.xclk_freq_hz = 10000000;
 
-  /*
- * For M5Stack ESP32 Camera (OV2640)
- * 
-
+  /** For M5Stack M5Cam - ESP32 Camera (OV2640)
+   * Change to match your pin configuration between OV2640 Camera and ESP32 connection
+  */
   camera_config.ledc_channel = LEDC_CHANNEL_0;
   camera_config.ledc_timer = LEDC_TIMER_0;
   camera_config.pin_d0 = 17;
@@ -101,7 +80,6 @@ void setup()
   camera_config.pin_sscb_scl = 23;
   camera_config.pin_reset = 15;
   camera_config.xclk_freq_hz = 20000000;
-  */
 
   camera_config.pixel_format = CAMERA_PF_JPEG;
   camera_config.frame_size = CAMERA_FS_SVGA;
@@ -133,7 +111,6 @@ void setup()
 
   //Print the sending result
   printRessult(result);
-
 }
 
 void loop()

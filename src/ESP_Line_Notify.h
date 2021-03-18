@@ -1,7 +1,7 @@
 /*
- * LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.0
+ * LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.1
  * 
- * March 15, 2021
+ * March 18, 2021
  *
  * This library provides ESP32 to perform REST API call to LINE Notify service to post the several message types.
  *

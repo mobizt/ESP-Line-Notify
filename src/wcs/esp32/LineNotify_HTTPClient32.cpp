@@ -78,8 +78,6 @@ bool FB_HTTPClient32::send(const char *header)
 
 int FB_HTTPClient32::send(const char *header, const char *payload)
 {
-  Serial.print(header);
-  Serial.print(payload);
   size_t size = strlen(payload);
   if (strlen(header) > 0)
   {

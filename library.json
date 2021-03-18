@@ -1,6 +1,6 @@
 {
   "name": "ESP Line Notify",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "keywords": "communication, REST, esp32, esp8266, arduino",
   "description": "Line Notify Library for ESP8266 and ESP32. Send the Line notification with text, sticker and images.",
   "repository": {

@@ -1,4 +1,4 @@
-# LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.0
+# LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.1
 
 This Arduino library allows ESp8266 and ESP32 to send LINE Notify message, sticker and images from flash and SD memory.
 
