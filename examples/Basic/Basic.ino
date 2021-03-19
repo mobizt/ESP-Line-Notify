@@ -10,7 +10,7 @@
 */
 
 /**
- * This example showed how to send the notified message to Line.
+ * This example showed how to send the notified message via the Line Notify agent.
  * The callback function and sending result can be assigned
  * 
 */
@@ -144,7 +144,7 @@ void sendingCallback(LineNotifySendingResult result)
 {
   if (result.status == LineNotify_Sending_Begin)
   {
-    Serial.println("Sending beggin");
+    Serial.println("Sending begin");
   }
   else if (result.status == LineNotify_Sending_Upload)
   {

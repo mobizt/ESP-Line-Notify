@@ -735,6 +735,56 @@ public:
         return buf;
     }
 
+    std::string url_encode(std::string s)
+    {
+        const char *str = s.c_str();
+        std::vector<char> v(s.size());
+        v.clear();
+        for (size_t i = 0, l = s.size(); i < l; i++)
+        {
+            char c = str[i];
+            if ((c >= '0' && c <= '9') ||
+                (c >= 'A' && c <= 'Z') ||
+                (c >= 'a' && c <= 'z') ||
+                c == '-' || c == '_' || c == '.' || c == '!' || c == '~' ||
+                c == '*' || c == '\'' || c == '(' || c == ')')
+            {
+                v.push_back(c);
+            }
+            else if (c == ' ')
+            {
+                v.push_back('+');
+            }
+            else
+            {
+                v.push_back('%');
+                unsigned char d1, d2;
+                hexchar(c, d1, d2);
+                v.push_back(d1);
+                v.push_back(d2);
+            }
+        }
+
+        return std::string(v.cbegin(), v.cend());
+    }
+
+    void splitTk(const std::string &str, std::vector<std::string> &tk, const char *delim)
+    {
+        std::size_t current, previous = 0;
+        current = str.find(delim, previous);
+        std::string s;
+        while (current != std::string::npos)
+        {
+            s = str.substr(previous, current - previous);
+            tk.push_back(s);
+            previous = current + strlen(delim);
+            current = str.find(delim, previous);
+        }
+        s = str.substr(previous, current - previous);
+        tk.push_back(s);
+        std::string().swap(s);
+    }
+
 private:
 };
 

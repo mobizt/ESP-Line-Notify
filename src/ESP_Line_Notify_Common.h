@@ -73,6 +73,16 @@ struct esp_line_notify_blob_data_info_t
     std::string file_name = "";
 };
 
+struct esp_line_notify_gmap_info_t
+{
+    std::string google_api_key = "";
+    std::string center = "";
+    std::string size = "640x640";
+    std::string map_type = "roadmap";
+    size_t zoom = 13;
+    std::string markers = "";
+};
+
 struct esp_line_notify_image_info_t
 {
     struct esp_line_notify_blob_data_info_t data;
@@ -158,6 +168,7 @@ typedef struct esp_line_notify_client_info_t
     std::string message = "";
     struct esp_line_notify_sticker_info_t sticker;
     struct esp_line_notify_image_info_t image;
+    struct esp_line_notify_gmap_info_t gmap;
     struct esp_line_notify_internal_info_t _int;
     bool reconnect_wifi = false;
     bool notification_disabled = false;
@@ -229,4 +240,13 @@ static const char esp_line_notify_str_56[] PROGMEM = "connection closed";
 static const char esp_line_notify_str_57[] PROGMEM = "notificationDisabled";
 static const char esp_line_notify_str_58[] PROGMEM = "true";
 static const char esp_line_notify_str_59[] PROGMEM = "false";
+static const char esp_line_notify_str_60[] PROGMEM = "https://maps.googleapis.com/maps/api/staticmap?key=";
+static const char esp_line_notify_str_61[] PROGMEM = "https://www.google.com/maps/@?api=1&map_action=map&center=";
+static const char esp_line_notify_str_62[] PROGMEM = "&center=";
+static const char esp_line_notify_str_63[] PROGMEM = "&zoom=";
+static const char esp_line_notify_str_64[] PROGMEM = "&maptype=";
+static const char esp_line_notify_str_65[] PROGMEM = "&size=";
+static const char esp_line_notify_str_66[] PROGMEM = "&markers=";
+static const char esp_line_notify_str_67[] PROGMEM = "&basemap=";
+static const char esp_line_notify_str_68[] PROGMEM = "\n\n";
 #endif

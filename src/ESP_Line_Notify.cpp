@@ -1,7 +1,7 @@
 /*
- * LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.1
+ * LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.2
  * 
- * March 18, 2021
+ * March 19, 2021
  *
  * This library provides ESP32 to perform REST API call to LINE Notify service to post the several message types.
  *
@@ -125,6 +125,20 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
     {
         setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_message, "");
         textPayload += client.message;
+
+        if (client.gmap.center.length() > 0)
+        {
+            ut->appendP(textPayload, esp_line_notify_str_68);
+            ut->appendP(textPayload, esp_line_notify_str_61);
+            textPayload += client.gmap.center;
+            ut->appendP(textPayload, esp_line_notify_str_67);
+            textPayload += client.gmap.map_type;
+            char *tmp = ut->intStr(client.gmap.zoom);
+            ut->appendP(textPayload, esp_line_notify_str_63);
+            textPayload += tmp;
+            ut->delS(tmp);
+        }
+
         ut->appendP(textPayload, esp_line_notify_str_4);
     }
 
@@ -160,6 +174,39 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
 
         setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_image_full_size, "");
         textPayload += client.image.url;
+        ut->appendP(textPayload, esp_line_notify_str_4);
+    }
+
+    if (client.gmap.google_api_key.length() > 0 && client.gmap.center.length() > 0)
+    {
+        std::string url = "";
+        ut->appendP(url, esp_line_notify_str_60);
+        url += client.gmap.google_api_key;
+        ut->appendP(url, esp_line_notify_str_62);
+        url += client.gmap.center;
+        char *tmp = ut->intStr(client.gmap.zoom);
+        ut->appendP(url, esp_line_notify_str_63);
+        url += tmp;
+        ut->delS(tmp);
+        ut->appendP(url, esp_line_notify_str_64);
+        url += client.gmap.map_type;
+        ut->appendP(url, esp_line_notify_str_65);
+        url += client.gmap.size;
+
+        std::vector<std::string> mkrs = std::vector<std::string>();
+        ut->splitTk(client.gmap.markers, mkrs, " ");
+        for (size_t i = 0; i < mkrs.size(); i++)
+        {
+            ut->appendP(url, esp_line_notify_str_66);
+            url += ut->url_encode(mkrs[i]);
+        }
+
+        setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_image_thumbnail, "");
+        textPayload += url;
+        ut->appendP(textPayload, esp_line_notify_str_4);
+
+        setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_image_full_size, "");
+        textPayload += url;
         ut->appendP(textPayload, esp_line_notify_str_4);
     }
 

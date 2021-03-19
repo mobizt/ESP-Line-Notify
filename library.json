@@ -1,8 +1,8 @@
 {
   "name": "ESP Line Notify",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "keywords": "communication, REST, esp32, esp8266, arduino",
-  "description": "Line Notify Library for ESP8266 and ESP32. Send the Line notification with text, sticker and images.",
+  "description": "Line Notify Library for ESP8266 and ESP32. Send the Line notification with text, sticker, map and images.",
   "repository": {
     "type": "git",
     "url": "https://github.com/mobizt/ESP-Line-Nptify.git"
