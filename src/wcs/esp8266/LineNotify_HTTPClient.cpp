@@ -30,11 +30,11 @@
 
 #include "LineNotify_HTTPClient.h"
 
-FB_HTTPClient::FB_HTTPClient()
+ESP_LN_HTTPClient::ESP_LN_HTTPClient()
 {
 }
 
-FB_HTTPClient::~FB_HTTPClient()
+ESP_LN_HTTPClient::~ESP_LN_HTTPClient()
 {
   if (_wcs)
   {
@@ -46,7 +46,7 @@ FB_HTTPClient::~FB_HTTPClient()
   std::string().swap(_CAFile);
 }
 
-bool FB_HTTPClient::begin(const char *host, uint16_t port)
+bool ESP_LN_HTTPClient::begin(const char *host, uint16_t port)
 {
   if (strcmp(_host.c_str(), host) != 0)
     mflnChecked = false;
@@ -73,21 +73,21 @@ bool FB_HTTPClient::begin(const char *host, uint16_t port)
   return true;
 }
 
-bool FB_HTTPClient::connected()
+bool ESP_LN_HTTPClient::connected()
 {
   if (_wcs)
     return (_wcs->connected());
   return false;
 }
 
-bool FB_HTTPClient::send(const char *header)
+bool ESP_LN_HTTPClient::send(const char *header)
 {
   if (!connected())
     return false;
   return (_wcs->write((uint8_t *)header, strlen(header)) == strlen(header));
 }
 
-int FB_HTTPClient::send(const char *header, const char *payload)
+int ESP_LN_HTTPClient::send(const char *header, const char *payload)
 {
   size_t size = strlen(payload);
   if (strlen(header) > 0)
@@ -114,14 +114,14 @@ int FB_HTTPClient::send(const char *header, const char *payload)
   return 0;
 }
 
-WiFiClient *FB_HTTPClient::stream(void)
+WiFiClient *ESP_LN_HTTPClient::stream(void)
 {
   if (connected())
     return _wcs.get();
   return nullptr;
 }
 
-bool FB_HTTPClient::connect(void)
+bool ESP_LN_HTTPClient::connect(void)
 {
   if (connected())
   {
@@ -136,7 +136,7 @@ bool FB_HTTPClient::connect(void)
   return connected();
 }
 
-void FB_HTTPClient::setCACert(const char *caCert)
+void ESP_LN_HTTPClient::setCACert(const char *caCert)
 {
 
   _wcs->setBufferSizes(_bsslRxSize, _bsslTxSize);
@@ -155,7 +155,7 @@ void FB_HTTPClient::setCACert(const char *caCert)
   _wcs->setNoDelay(true);
 }
 
-void FB_HTTPClient::setCACertFile(const char *caCertFile, uint8_t storageType, struct fb_esp_sd_config_info_t sd_config)
+void ESP_LN_HTTPClient::setCACertFile(const char *caCertFile, uint8_t storageType, struct esp_ln_sd_config_info_t sd_config)
 {
   _sdPin = sd_config.ss;
   _wcs->setBufferSizes(_bsslRxSize, _bsslTxSize);
@@ -192,4 +192,4 @@ void FB_HTTPClient::setCACertFile(const char *caCertFile, uint8_t storageType, s
 
 #endif /* ESP8266 */
 
-#endif /* FB_HTTPClient_CPP */
+#endif /* ESP_LN_HTTPClient_CPP */

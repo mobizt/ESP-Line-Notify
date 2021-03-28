@@ -1,7 +1,7 @@
 /**
  * Created March 15, 2021
  * 
- * This work is a part of ESP-Lime-Notify library
+ * This work is a part of ESP-Line-Notify library
  * Copyright (c) 2021, K. Suwatchai (Mobizt)
  * 
  * The MIT License (MIT)

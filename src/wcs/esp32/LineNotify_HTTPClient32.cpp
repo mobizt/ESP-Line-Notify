@@ -34,9 +34,9 @@
 
 #include "LineNotify_HTTPClient32.h"
 
-FB_HTTPClient32::FB_HTTPClient32() {}
+ESP_LN_HTTPClient32::ESP_LN_HTTPClient32() {}
 
-FB_HTTPClient32::~FB_HTTPClient32()
+ESP_LN_HTTPClient32::~ESP_LN_HTTPClient32()
 {
   if (_wcs)
   {
@@ -48,35 +48,35 @@ FB_HTTPClient32::~FB_HTTPClient32()
   std::string().swap(_CAFile);
 }
 
-bool FB_HTTPClient32::begin(const char *host, uint16_t port)
+bool ESP_LN_HTTPClient32::begin(const char *host, uint16_t port)
 {
   _host = host;
   _port = port;
   return true;
 }
 
-bool FB_HTTPClient32::connected()
+bool ESP_LN_HTTPClient32::connected()
 {
   if (_wcs)
     return (_wcs->connected());
   return false;
 }
 
-void FB_HTTPClient32::stop()
+void ESP_LN_HTTPClient32::stop()
 {
   if (!connected())
     return;
   return _wcs->stop();
 }
 
-bool FB_HTTPClient32::send(const char *header)
+bool ESP_LN_HTTPClient32::send(const char *header)
 {
   if (!connected())
     return false;
   return (_wcs->print(header) == strlen(header));
 }
 
-int FB_HTTPClient32::send(const char *header, const char *payload)
+int ESP_LN_HTTPClient32::send(const char *header, const char *payload)
 {
   size_t size = strlen(payload);
   if (strlen(header) > 0)
@@ -103,14 +103,14 @@ int FB_HTTPClient32::send(const char *header, const char *payload)
   return 0;
 }
 
-WiFiClient *FB_HTTPClient32::stream(void)
+WiFiClient *ESP_LN_HTTPClient32::stream(void)
 {
   if (connected())
     return _wcs.get();
   return nullptr;
 }
 
-bool FB_HTTPClient32::connect(void)
+bool ESP_LN_HTTPClient32::connect(void)
 {
   if (connected())
   {
@@ -125,7 +125,7 @@ bool FB_HTTPClient32::connect(void)
   return connected();
 }
 
-void FB_HTTPClient32::setInsecure()
+void ESP_LN_HTTPClient32::setInsecure()
 {
 #if __has_include(<esp_idf_version.h>)
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 3, 0)
@@ -134,7 +134,7 @@ void FB_HTTPClient32::setInsecure()
 #endif
 }
 
-void FB_HTTPClient32::setCACert(const char *caCert)
+void ESP_LN_HTTPClient32::setCACert(const char *caCert)
 {
   _wcs->setCACert(caCert);
   if (caCert)
@@ -147,7 +147,7 @@ void FB_HTTPClient32::setCACert(const char *caCert)
   //_wcs->setNoDelay(true);
 }
 
-void FB_HTTPClient32::setCACertFile(const char *caCertFile, uint8_t storageType, struct fb_esp_sd_config_info_t sd_config)
+void ESP_LN_HTTPClient32::setCACertFile(const char *caCertFile, uint8_t storageType, struct esp_ln_sd_config_info_t sd_config)
 {
 
   if (strlen(caCertFile) > 0)

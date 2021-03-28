@@ -17,15 +17,15 @@ send    KEYWORD2
 sdBegin KEYWORD2
 
 #######################################
-# Struct (LITERAL1)
+# Struct (KEYWORD3)
 #######################################
 
-LineNotifySendingResult LITERAL1
-LineNotify_Sending_None LITERAL1
-LineNotify_Sending_Begin    LITERAL1
-LineNotify_Sending_In_Progress  LITERAL1
-LineNotify_Sending_Upload   LITERAL1
-LineNotify_Sending_Error    LITERAL1
-LineNotify_Sending_Success  LITERAL1
-LineNotify_Storage_Type_Flash   LITERAL1
-LineNotify_Storage_Type_SD  LITERAL1
+LineNotifySendingResult KEYWORD3
+LineNotify_Sending_None KEYWORD3
+LineNotify_Sending_Begin    KEYWORD3
+LineNotify_Sending_In_Progress  KEYWORD3
+LineNotify_Sending_Upload   KEYWORD3
+LineNotify_Sending_Error    KEYWORD3
+LineNotify_Sending_Success  KEYWORD3
+LineNotify_Storage_Type_Flash   KEYWORD3
+LineNotify_Storage_Type_SD  KEYWORD3

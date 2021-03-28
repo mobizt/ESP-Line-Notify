@@ -46,7 +46,7 @@
 
 #include <WiFiClientSecure.h>
 #include <CertStoreBearSSL.h>
-#define FB_ESP_SSL_CLIENT BearSSL::WiFiClientSecure
+#define ESP_LN_ESP_SSL_CLIENT BearSSL::WiFiClientSecure
 
 #define FS_NO_GLOBALS
 #include <FS.h>
@@ -65,7 +65,7 @@
 
 #include "wcs/LineNotify_HTTPCode.h"
 
-struct fb_esp_sd_config_info_t
+struct esp_ln_sd_config_info_t
 {
   int sck = -1;
   int miso = -1;
@@ -73,15 +73,15 @@ struct fb_esp_sd_config_info_t
   int ss = -1;
 };
 
-class FB_HTTPClient
+class ESP_LN_HTTPClient
 {
 
   friend class ESP_Line_Notify;
   friend class ESP_Line_Notify_Utils;
 
 public:
-  FB_HTTPClient();
-  ~FB_HTTPClient();
+  ESP_LN_HTTPClient();
+  ~ESP_LN_HTTPClient();
 
   bool begin(const char *host, uint16_t port);
 
@@ -94,12 +94,12 @@ public:
   WiFiClient *stream(void);
 
   void setCACert(const char *caCert);
-  void setCACertFile(const char* caCertFile, uint8_t storageType, struct fb_esp_sd_config_info_t sd_config);
+  void setCACertFile(const char* caCertFile, uint8_t storageType, struct esp_ln_sd_config_info_t sd_config);
   bool connect(void);
 
 
 private:
-  std::unique_ptr<FB_ESP_SSL_CLIENT> _wcs = std::unique_ptr<FB_ESP_SSL_CLIENT>(new FB_ESP_SSL_CLIENT());
+  std::unique_ptr<ESP_LN_ESP_SSL_CLIENT> _wcs = std::unique_ptr<ESP_LN_ESP_SSL_CLIENT>(new ESP_LN_ESP_SSL_CLIENT());
   std::string _host = "";
   uint16_t _port = 0;
   unsigned long timeout = LINENOTIFY_DEFAULT_TCP_TIMEOUT;

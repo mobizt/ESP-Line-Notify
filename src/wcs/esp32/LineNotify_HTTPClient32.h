@@ -55,7 +55,7 @@
 
 #include "wcs/LineNotify_HTTPCode.h"
 
-struct fb_esp_sd_config_info_t
+struct esp_ln_sd_config_info_t
 {
   int sck = -1;
   int miso = -1;
@@ -63,15 +63,15 @@ struct fb_esp_sd_config_info_t
   int ss = -1;
 };
 
-class FB_HTTPClient32
+class ESP_LN_HTTPClient32
 {
 
   friend class ESP_Line_Notify;
   friend class ESP_Line_Notify_Utils;
 
 public:
-  FB_HTTPClient32();
-  ~FB_HTTPClient32();
+  ESP_LN_HTTPClient32();
+  ~ESP_LN_HTTPClient32();
 
   /**
    * Initialization of new http connection.
@@ -120,7 +120,7 @@ public:
 
   bool connect(void);
   void setCACert(const char *caCert);
-  void setCACertFile(const char *caCertFile, uint8_t storageType, struct fb_esp_sd_config_info_t sd_config);
+  void setCACertFile(const char *caCertFile, uint8_t storageType, struct esp_ln_sd_config_info_t sd_config);
 
 protected:
   std::unique_ptr<WiFiClientSecure> _wcs = std::unique_ptr<WiFiClientSecure>(new WiFiClientSecure());

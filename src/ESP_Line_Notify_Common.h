@@ -16,7 +16,7 @@
 #endif
 
 #include <FS.h>
-#include "json/MB_Json.h"
+#include "json/FirebaseJson.h"
 
 #define SD_CS_PIN 15
 
@@ -174,9 +174,9 @@ typedef struct esp_line_notify_client_info_t
     bool notification_disabled = false;
     uint16_t response_size = 2048;
 #if defined(ESP32)
-    FB_HTTPClient32 *httpClient;
+    ESP_LN_HTTPClient32 *httpClient;
 #elif defined(ESP8266)
-    FB_HTTPClient *httpClient;
+    ESP_LN_HTTPClient *httpClient;
 #endif
     LineNotifyProgressCallback sendingg_callback = NULL;
 } LineNotiFyClient;

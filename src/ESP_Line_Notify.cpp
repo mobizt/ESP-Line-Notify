@@ -1,7 +1,7 @@
 /*
- * LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.2
+ * LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.3
  * 
- * March 19, 2021
+ * March 28, 2021
  *
  * This library provides ESP32 to perform REST API call to LINE Notify service to post the several message types.
  *
@@ -97,9 +97,9 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
     if (!client.httpClient)
     {
 #if defined(ESP32)
-        client.httpClient = new FB_HTTPClient32();
+        client.httpClient = new ESP_LN_HTTPClient32();
 #elif defined(ESP8266)
-        client.httpClient = new FB_HTTPClient();
+        client.httpClient = new ESP_LN_HTTPClient();
 #endif
     }
 
@@ -578,8 +578,8 @@ bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
         //parse the payload
         if (payload.length() > 0)
         {
-            MB_Json js;
-            MB_JsonData data;
+            FirebaseJson js;
+            FirebaseJsonData data;
             js.setJsonData(payload.c_str());
             char *tmp = ut->strP(esp_line_notify_str_45);
             js.get(data, (const char *)tmp);
