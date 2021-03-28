@@ -1,5 +1,5 @@
 /*
- * LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.3
+ * LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.4
  * 
  * March 28, 2021
  *
