@@ -3,7 +3,7 @@
  * 
  * The Easiest Arduino library to parse, create and edit JSON object using a relative path.
  * 
- * March 28, 2021
+ * April 4, 2021
  * 
  * Features
  * - None recursive operations
@@ -126,7 +126,7 @@ typedef struct
 class FirebaseJsonHelper
 {
 public:
-    FirebaseJsonHelper(){};
+    FirebaseJsonHelper(fb_json_last_error_t *err) { last_err = err; };
     ~FirebaseJsonHelper(){};
 
     /*** dtostrf function is taken from 
@@ -261,20 +261,26 @@ public:
 
     void setLastError(int code, const char *file, int line, PGM_P msg)
     {
-        last_err.code = code;
-        last_err.function = file;
-        last_err.line = line;
-        char *tmp = strP(msg);
-        last_err.messagge = tmp;
-        delS(tmp);
+        if (last_err)
+        {
+            last_err->code = code;
+            last_err->function = file;
+            last_err->line = line;
+            char *tmp = strP(msg);
+            last_err->messagge = tmp;
+            delS(tmp);
+        }
     }
 
     void clearLastError()
     {
-        last_err.code = 0;
-        last_err.function = "";
-        last_err.line = 0;
-        last_err.messagge = "";
+        if (last_err)
+        {
+            last_err->code = 0;
+            last_err->function = "";
+            last_err->line = 0;
+            last_err->messagge = "";
+        }
     }
 
     int strpos(const char *haystack, const char *needle, int offset)
@@ -340,14 +346,6 @@ public:
         return 0;
     }
 
-    int strposP(const char *buf, PGM_P beginH, int ofs)
-    {
-        char *tmp = strP(beginH);
-        int p = strpos(buf, tmp, ofs);
-        delS(tmp);
-        return p;
-    }
-
     void delS(char *p)
     {
         if (p != nullptr)
@@ -410,7 +408,8 @@ public:
             buf[i] = '\0';
     }
 
-    fb_json_last_error_t last_err;
+private:
+    fb_json_last_error_t *last_err = nullptr;
 };
 
 class FirebaseJsonData
@@ -482,9 +481,7 @@ public:
     bool success = false;
 
 private:
-    fb_json_last_error_t *_lastErr = nullptr;
     size_t _parser_buff_len = FB_JSON_EXTRAS_BUFFER_LENGTH;
-    FirebaseJsonHelper *helper = new FirebaseJsonHelper();
     int _type = 0;
     int _k_start = 0;
     int _start = 0;
@@ -910,7 +907,9 @@ public:
 private:
     size_t _parser_buff_len = FB_JSON_EXTRAS_BUFFER_LENGTH;
 
-    FirebaseJsonHelper *helper = new FirebaseJsonHelper();
+    fb_json_last_error_t _lastErr;
+
+    FirebaseJsonHelper *helper = new FirebaseJsonHelper(&_lastErr);
 
     fbjs_type_t _topLevelTkType = JSMN_OBJECT;
 
@@ -1028,7 +1027,7 @@ class FirebaseJsonArray
 
 public:
     FirebaseJsonArray();
-    FirebaseJsonArray(size_t bufLimit);
+    FirebaseJsonArray(fb_json_last_error_t *lastErr, size_t bufLimit = FB_JSON_EXTRAS_BUFFER_LENGTH);
     ~FirebaseJsonArray();
     void _init();
     void _finalize();
@@ -1352,8 +1351,9 @@ public:
     void int_toStdString(std::string &s);
 
 private:
+    fb_json_last_error_t *_lastErr = nullptr;
     size_t _parser_buff_len = FB_JSON_EXTRAS_BUFFER_LENGTH;
-    FirebaseJsonHelper *helper = new FirebaseJsonHelper();
+    FirebaseJsonHelper *helper = new FirebaseJsonHelper(_lastErr);
     std::string _jbuf = "";
     FirebaseJson _json;
     size_t _arrLen = 0;
