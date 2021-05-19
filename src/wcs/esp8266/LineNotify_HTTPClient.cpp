@@ -1,5 +1,5 @@
 /**
- * HTTP Client wrapper v1.0.0 for ESP Line Notify
+ * HTTP Client wrapper v1.0.1 for ESP Line Notify
  * 
  * The MIT License (MIT)
  * Copyright (c) 2021 K. Suwatchai (Mobizt)
