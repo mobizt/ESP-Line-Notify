@@ -29,3 +29,7 @@
 
 //For ESP32, format SPIFFS or FFat if mounting failed
 #define FORMAT_FLASH_IF_MOUNT_FAILED 1
+
+#if defined(ESP32)
+#define ESP_LINE_NOTIFY_USE_PSRAM
+#endif

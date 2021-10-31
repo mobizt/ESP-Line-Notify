@@ -70,7 +70,7 @@ bool ESP_Line_Notify::sdBegin(int8_t ss, int8_t sck, int8_t miso, int8_t mosi)
     return false;
 }
 
-LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
+LineNotifySendingResult ESP_Line_Notify::send(LineNotifyClient &client)
 {
     _client = &client;
     result.status = LineNotify_Sending_None;
@@ -105,17 +105,17 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
 
     client.httpClient->setCACert(nullptr);
 
-    std::string host = "";
+    MBSTRING host = "";
     ut->appendP(host, esp_line_notify_str_1);
 
     client.httpClient->begin(host.c_str(), 443);
     uint32_t contentLength = 0;
     int ret = 0;
 
-    std::string textPayload = "";
-    std::string header = "";
-    std::string multipath = "";
-    std::string boundary = ut->getBoundary(10);
+    MBSTRING textPayload = "";
+    MBSTRING header = "";
+    MBSTRING multipath = "";
+    MBSTRING boundary = ut->getBoundary(10);
 
     result.status = LineNotify_Sending_Begin;
     if (client.sendingg_callback)
@@ -136,7 +136,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
             char *tmp = ut->intStr(client.gmap.zoom);
             ut->appendP(textPayload, esp_line_notify_str_63);
             textPayload += tmp;
-            ut->delS(tmp);
+            ut->delP(&tmp);
         }
 
         ut->appendP(textPayload, esp_line_notify_str_4);
@@ -147,7 +147,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
         setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_notification_disabled, "");
         char *tmp = ut->boolStr(true);
         textPayload += tmp;
-        ut->delS(tmp);
+        ut->delP(&tmp);
         ut->appendP(textPayload, esp_line_notify_str_4);
     }
 
@@ -156,13 +156,13 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
         setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_sticker_package_id, "");
         char *tmp = ut->intStr(client.sticker.package_id);
         textPayload += tmp;
-        ut->delS(tmp);
+        ut->delP(&tmp);
         ut->appendP(textPayload, esp_line_notify_str_4);
 
         setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_sticker_id, "");
         tmp = ut->intStr(client.sticker.id);
         textPayload += tmp;
-        ut->delS(tmp);
+        ut->delP(&tmp);
         ut->appendP(textPayload, esp_line_notify_str_4);
     }
 
@@ -179,7 +179,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
 
     if (client.gmap.google_api_key.length() > 0 && client.gmap.center.length() > 0)
     {
-        std::string url = "";
+        MBSTRING url = "";
         ut->appendP(url, esp_line_notify_str_60);
         url += client.gmap.google_api_key;
         ut->appendP(url, esp_line_notify_str_62);
@@ -187,13 +187,13 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
         char *tmp = ut->intStr(client.gmap.zoom);
         ut->appendP(url, esp_line_notify_str_63);
         url += tmp;
-        ut->delS(tmp);
+        ut->delP(&tmp);
         ut->appendP(url, esp_line_notify_str_64);
         url += client.gmap.map_type;
         ut->appendP(url, esp_line_notify_str_65);
         url += client.gmap.size;
 
-        std::vector<std::string> mkrs = std::vector<std::string>();
+        std::vector<MBSTRING> mkrs = std::vector<MBSTRING>();
         ut->splitTk(client.gmap.markers, mkrs, " ");
         for (size_t i = 0; i < mkrs.size(); i++)
         {
@@ -212,7 +212,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
 
     if (client.image.file.path.length() > 0)
     {
-        std::string fpath = "";
+        MBSTRING fpath = "";
         if (client.image.file.path[0] != '/')
             fpath = "/";
         fpath += client.image.file.path;
@@ -266,8 +266,8 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
         setHeader(client, header, boundary, contentLength);
 
         ret = client.httpClient->send(header.c_str(), textPayload.c_str());
-        std::string().swap(textPayload);
-        std::string().swap(header);
+        MBSTRING().swap(textPayload);
+        MBSTRING().swap(header);
         if (ret < 0)
         {
             ut->appendP(result.error.message, esp_line_notify_str_56, true);
@@ -277,7 +277,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
         }
 
         ret = client.httpClient->send("", multipath.c_str());
-        std::string().swap(multipath);
+        MBSTRING().swap(multipath);
         if (ret < 0)
         {
             ut->appendP(result.error.message, esp_line_notify_str_56, true);
@@ -293,7 +293,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
         {
             int available = client._int.esp_line_notify_file.available();
             int bufLen = 1024;
-            uint8_t *buf = new uint8_t[bufLen + 1];
+            uint8_t *buf = (uint8_t*)ut->newP(bufLen + 1);
             size_t read = 0;
             while (available)
             {
@@ -307,7 +307,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
                 reportUpploadProgress(client, client._int.upload_len, byteRead);
                 available = client._int.esp_line_notify_file.available();
             }
-            delete[] buf;
+            ut->delP(&buf);
             client._int.esp_line_notify_file.close();
         }
         else if (client.image.data.size > 0)
@@ -315,7 +315,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
             int len = client.image.data.size;
             int available = len;
             int bufLen = 1024;
-            uint8_t *buf = new uint8_t[bufLen + 1];
+            uint8_t *buf = (uint8_t*)ut->newP(bufLen + 1);
             size_t pos = 0;
             while (available)
             {
@@ -332,7 +332,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
                 len -= available;
                 available = len;
             }
-            delete[] buf;
+            ut->delP(&buf);
         }
 
         textPayload.clear();
@@ -342,7 +342,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
         setMultipartBoundary(textPayload, boundary);
 
         ret = client.httpClient->send("", textPayload.c_str());
-        std::string().swap(textPayload);
+        MBSTRING().swap(textPayload);
         if (ret < 0)
         {
             ut->appendP(result.error.message, esp_line_notify_str_56, true);
@@ -362,8 +362,8 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
         setHeader(client, header, boundary, contentLength);
 
         ret = client.httpClient->send(header.c_str(), textPayload.c_str());
-        std::string().swap(textPayload);
-        std::string().swap(header);
+        MBSTRING().swap(textPayload);
+        MBSTRING().swap(header);
     }
 
     if (ret == 0)
@@ -386,7 +386,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotiFyClient &client)
     return result;
 }
 
-bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
+bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
 {
 
     if (!reconnect(client, 0))
@@ -430,7 +430,7 @@ bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
     }
 
     int availablePayload = chunkBufSize;
-    std::string payload = "";
+    MBSTRING payload = "";
 
     dataTime = millis();
 
@@ -453,7 +453,7 @@ bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
                 if (chunkIdx == 0)
                 {
                     //the first chunk can be http response header
-                    header = ut->newS(chunkBufSize);
+                    header = (char*)ut->newP(chunkBufSize);
                     hstate = 1;
                     int readLen = ut->readLine(stream, header, chunkBufSize);
                     int pos = 0;
@@ -468,7 +468,7 @@ bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
                         hBufPos = readLen;
                         response.httpCode = atoi(tmp);
                         client._int.http_code = response.httpCode;
-                        ut->delS(tmp);
+                        ut->delP(&tmp);
                     }
                 }
                 else
@@ -479,7 +479,7 @@ bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
                     if (isHeader)
                     {
                         //read one line of next header field until the empty header has found
-                        tmp = ut->newS(chunkBufSize);
+                        tmp = (char*)ut->newP(chunkBufSize);
                         int readLen = ut->readLine(stream, tmp, chunkBufSize);
                         bool headerEnded = false;
 
@@ -507,12 +507,12 @@ bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
                                 result.error.code = 0;
 
                             if (hstate == 1)
-                                ut->delS(header);
+                                ut->delP(&header);
                             hstate = 0;
 
                             if (response.contentLen == 0)
                             {
-                                ut->delS(tmp);
+                                ut->delP(&tmp);
                                 break;
                             }
                         }
@@ -522,7 +522,7 @@ bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
                             memcpy(header + hBufPos, tmp, readLen);
                             hBufPos += readLen;
                         }
-                        ut->delS(tmp);
+                        ut->delP(&tmp);
                     }
                     else
                     {
@@ -531,7 +531,7 @@ bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
                         {
 
                             pChunkIdx++;
-                            pChunk = ut->newS(chunkBufSize + 1);
+                            pChunk = (char*)ut->newP(chunkBufSize + 1);
 
                             if (response.isChunkedEnc)
                                 delay(10);
@@ -550,7 +550,7 @@ bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
                                     payload += pChunk;
                             }
 
-                            ut->delS(pChunk);
+                            ut->delP(&pChunk);
 
                             if (availablePayload < 0 || (payloadRead >= response.contentLen && !response.isChunkedEnc))
                             {
@@ -573,7 +573,7 @@ bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
         }
 
         if (hstate == 1)
-            ut->delS(header);
+            ut->delP(&header);
 
         //parse the payload
         if (payload.length() > 0)
@@ -583,13 +583,13 @@ bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
             js.setJsonData(payload.c_str());
             char *tmp = ut->strP(esp_line_notify_str_45);
             js.get(data, (const char *)tmp);
-            ut->delS(tmp);
+            ut->delP(&tmp);
             if (data.success)
                 result.error.code = data.intValue;
 
             tmp = ut->strP(esp_line_notify_str_19);
             js.get(data, (const char *)tmp);
-            ut->delS(tmp);
+            ut->delP(&tmp);
             if (data.success)
                 result.error.message = data.stringValue.c_str();
         }
@@ -606,7 +606,7 @@ bool ESP_Line_Notify::handleResponse(LineNotiFyClient &client)
     return client._int.http_code == LINENOTIFY_ERROR_HTTP_CODE_OK;
 }
 
-bool ESP_Line_Notify::reconnect(LineNotiFyClient &client, unsigned long dataTime)
+bool ESP_Line_Notify::reconnect(LineNotifyClient &client, unsigned long dataTime)
 {
 
     bool status = WiFi.status() == WL_CONNECTED;
@@ -619,7 +619,7 @@ bool ESP_Line_Notify::reconnect(LineNotiFyClient &client, unsigned long dataTime
             char *tmp = ut->strP(esp_line_notify_str_44);
             result.error.message = tmp;
             result.error.code = client._int.http_code;
-            ut->delS(tmp);
+            ut->delP(&tmp);
             closeSession(client);
             return false;
         }
@@ -647,7 +647,7 @@ bool ESP_Line_Notify::reconnect(LineNotiFyClient &client, unsigned long dataTime
     return status;
 }
 
-void ESP_Line_Notify::closeSession(LineNotiFyClient &client)
+void ESP_Line_Notify::closeSession(LineNotifyClient &client)
 {
     if (WiFi.status() == WL_CONNECTED)
     {
@@ -664,7 +664,7 @@ void ESP_Line_Notify::closeSession(LineNotiFyClient &client)
     client._int.http_connected = false;
 }
 
-void ESP_Line_Notify::setHeader(LineNotiFyClient &client, std::string &buf, std::string &boundary, size_t contentLength)
+void ESP_Line_Notify::setHeader(LineNotifyClient &client, MBSTRING &buf, MBSTRING &boundary, size_t contentLength)
 {
     ut->appendP(buf, esp_line_notify_str_5);
     ut->appendP(buf, esp_line_notify_str_4);
@@ -700,12 +700,12 @@ void ESP_Line_Notify::setHeader(LineNotiFyClient &client, std::string &buf, std:
     ut->appendP(buf, esp_line_notify_str_14);
     char *tmp = ut->intStr(contentLength);
     buf += tmp;
-    ut->delS(tmp);
+    ut->delP(&tmp);
     ut->appendP(buf, esp_line_notify_str_4);
     ut->appendP(buf, esp_line_notify_str_4);
 }
 
-void ESP_Line_Notify::setMultipartHeader(std::string &buf, std::string &boundary, esp_line_notify_multipart_header_type type, const char *imgFile)
+void ESP_Line_Notify::setMultipartHeader(MBSTRING &buf, MBSTRING &boundary, esp_line_notify_multipart_header_type type, const char *imgFile)
 {
     ut->appendP(buf, esp_line_notify_str_24);
     buf += boundary;
@@ -745,12 +745,12 @@ void ESP_Line_Notify::setMultipartHeader(std::string &buf, std::string &boundary
     }
 }
 
-void ESP_Line_Notify::getContentType(const std::string &filename, std::string &buf)
+void ESP_Line_Notify::getContentType(const MBSTRING &filename, MBSTRING &buf)
 {
     char *tmp = ut->strP(esp_line_notify_str_35);
     size_t p1 = filename.find_last_of(tmp);
-    ut->delS(tmp);
-    if (p1 != std::string::npos)
+    ut->delP(&tmp);
+    if (p1 != MBSTRING::npos)
     {
         tmp = ut->strP(esp_line_notify_str_26);
         char *tmp2 = ut->strP(esp_line_notify_str_27);
@@ -758,24 +758,24 @@ void ESP_Line_Notify::getContentType(const std::string &filename, std::string &b
         char *tmp4 = ut->strP(esp_line_notify_str_31);
         char *tmp5 = ut->strP(esp_line_notify_str_33);
 
-        if (filename.find(tmp, p1) != std::string::npos || filename.find(tmp2, p1) != std::string::npos)
+        if (filename.find(tmp, p1) != MBSTRING::npos || filename.find(tmp2, p1) != MBSTRING::npos)
             ut->appendP(buf, esp_line_notify_str_28);
-        else if (filename.find(tmp3, p1) != std::string::npos)
+        else if (filename.find(tmp3, p1) != MBSTRING::npos)
             ut->appendP(buf, esp_line_notify_str_30);
-        else if (filename.find(tmp4, p1) != std::string::npos)
+        else if (filename.find(tmp4, p1) != MBSTRING::npos)
             ut->appendP(buf, esp_line_notify_str_32);
-        else if (filename.find(tmp5, p1) != std::string::npos)
+        else if (filename.find(tmp5, p1) != MBSTRING::npos)
             ut->appendP(buf, esp_line_notify_str_34);
 
-        ut->delS(tmp);
-        ut->delS(tmp2);
-        ut->delS(tmp3);
-        ut->delS(tmp4);
-        ut->delS(tmp5);
+        ut->delP(&tmp);
+        ut->delP(&tmp2);
+        ut->delP(&tmp3);
+        ut->delP(&tmp4);
+        ut->delP(&tmp5);
     }
 }
 
-void ESP_Line_Notify::setMultipartBoundary(std::string &buf, std::string &boundary)
+void ESP_Line_Notify::setMultipartBoundary(MBSTRING &buf, MBSTRING &boundary)
 {
     ut->appendP(buf, esp_line_notify_str_24);
     buf += boundary;
@@ -783,7 +783,7 @@ void ESP_Line_Notify::setMultipartBoundary(std::string &buf, std::string &bounda
     ut->appendP(buf, esp_line_notify_str_4);
 }
 
-void ESP_Line_Notify::reportUpploadProgress(LineNotiFyClient &client, size_t total, size_t read)
+void ESP_Line_Notify::reportUpploadProgress(LineNotifyClient &client, size_t total, size_t read)
 {
 
     if (!client.sendingg_callback)

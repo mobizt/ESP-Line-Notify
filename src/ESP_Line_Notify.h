@@ -45,10 +45,10 @@ public:
 
     /** Send the Line Notify message.
      * 
-     * @param client The LineNotiFyClient data which contains TCP client with message data.
+     * @param client The LineNotifyClient data which contains TCP client with message data.
      * @return LineNotifySendingResult type data to get the sending result.
     */
-    LineNotifySendingResult send(LineNotiFyClient &client);
+    LineNotifySendingResult send(LineNotifyClient &client);
 
     /** SD card config with GPIO pins.
      * 
@@ -63,15 +63,15 @@ public:
 private:
     ESP_Line_Notify_Utils *ut = nullptr;
     LineNotifySendingResult result;
-    LineNotiFyClient *_client = nullptr;
-    void setMultipartHeader(std::string &buf, std::string &boundary, esp_line_notify_multipart_header_type type, const char *imgFile);
-    void getContentType(const std::string &filename, std::string &buf);
-    void setMultipartBoundary(std::string &buf, std::string &boundary);
-    void setHeader(LineNotiFyClient &client, std::string &buf, std::string &boundary, size_t contentLength);
-    bool handleResponse(LineNotiFyClient &client);
-    bool reconnect(LineNotiFyClient &client, unsigned long dataTime);
-    void closeSession(LineNotiFyClient &client);
-    void reportUpploadProgress(LineNotiFyClient &client, size_t total, size_t read);
+    LineNotifyClient *_client = nullptr;
+    void setMultipartHeader(MBSTRING &buf, MBSTRING &boundary, esp_line_notify_multipart_header_type type, const char *imgFile);
+    void getContentType(const MBSTRING &filename, MBSTRING &buf);
+    void setMultipartBoundary(MBSTRING &buf, MBSTRING &boundary);
+    void setHeader(LineNotifyClient &client, MBSTRING &buf, MBSTRING &boundary, size_t contentLength);
+    bool handleResponse(LineNotifyClient &client);
+    bool reconnect(LineNotifyClient &client, unsigned long dataTime);
+    void closeSession(LineNotifyClient &client);
+    void reportUpploadProgress(LineNotifyClient &client, size_t total, size_t read);
 };
 
 extern ESP_Line_Notify LineNotify;

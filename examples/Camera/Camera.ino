@@ -33,7 +33,7 @@
 OV2640 cam;
 
 /* Define the LineNotifyClient object */
-LineNotiFyClient client;
+LineNotifyClient client;
 
 /* Function to print the sending result via Serial (optional) */
 void printRessult(LineNotifySendingResult result);

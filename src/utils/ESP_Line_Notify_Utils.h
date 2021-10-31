@@ -42,9 +42,9 @@ class ESP_Line_Notify_Utils
 
 public:
     
-    LineNotiFyClient *client = nullptr;
+    LineNotifyClient *client = nullptr;
 
-    ESP_Line_Notify_Utils(LineNotiFyClient c)
+    ESP_Line_Notify_Utils(LineNotifyClient c)
     {
         client = &c;
     };
@@ -54,7 +54,7 @@ public:
     char *strP(PGM_P pgm)
     {
         size_t len = strlen_P(pgm) + 5;
-        char *buf = newS(len);
+        char *buf = (char *)newP(len);
         memset(buf, 0, len);
         strcpy_P(buf, pgm);
         return buf;
@@ -64,7 +64,7 @@ public:
     {
         char *tmp = strP(beginH);
         int p = strpos(buf, tmp, ofs);
-        delS(tmp);
+        delP(&tmp);
         return p;
     }
 
@@ -79,12 +79,12 @@ public:
             ofs = p;
         }
         tmp = strP(beginH);
-        char *tmp2 = newS(strlen_P(beginH) + 1);
+        char *tmp2 = (char *)newP(strlen_P(beginH) + 1);
         memcpy(tmp2, &buf[ofs], strlen_P(beginH));
         tmp2[strlen_P(beginH)] = 0;
         bool ret = (strcasecmp(tmp, tmp2) == 0);
-        delS(tmp);
-        delS(tmp2);
+        delP(&tmp);
+        delP(&tmp2);
         return ret;
     }
 
@@ -103,7 +103,7 @@ public:
                 p2 = strlen(buf);
 
             int len = p2 - p1 - strlen_P(beginH);
-            tmp = newS(len + 1);
+            tmp = (char *)newP(len + 1);
             memcpy(tmp, &buf[p1 + strlen_P(beginH)], len);
             return tmp;
         }
@@ -111,13 +111,13 @@ public:
         return nullptr;
     }
 
-    void appendP(std::string &buf, PGM_P p, bool empty = false)
+    void appendP(MBSTRING &buf, PGM_P p, bool empty = false)
     {
         if (empty)
             buf.clear();
         char *b = strP(p);
         buf += b;
-        delS(b);
+        delP(&b);
     }
 
     void trimDigits(char *buf)
@@ -152,14 +152,14 @@ public:
         size_t len2 = strlen(needle);
         if (len == 0 || len < len2 || len2 == 0 || offset >= (int)len)
             return -1;
-        char *_haystack = newS(len - offset + 1);
+        char *_haystack = (char *)newP(len - offset + 1);
         _haystack[len - offset] = 0;
         strncpy(_haystack, haystack + offset, len - offset);
         char *p = strstr(_haystack, needle);
         int r = -1;
         if (p)
             r = p - _haystack + offset;
-        delS(_haystack);
+        delP(&_haystack);
         return r;
     }
 
@@ -188,47 +188,111 @@ public:
         size_t len2 = strlen(needle);
         if (len == 0 || len < len2 || len2 == 0 || offset >= (int)len)
             return -1;
-        char *_haystack = newS(len - offset + 1);
+        char *_haystack = (char *)newP(len - offset + 1);
         _haystack[len - offset] = 0;
         strncpy(_haystack, haystack + offset, len - offset);
         char *p = rstrstr(_haystack, needle);
         int r = -1;
         if (p)
             r = p - _haystack + offset;
-        delS(_haystack);
+        delP(&_haystack);
         return r;
     }
 
-    inline std::string trim(const std::string &s)
+    void ltrim(MBSTRING &str, const MBSTRING &chars = " ")
     {
-        auto wsfront = std::find_if_not(s.begin(), s.end(), [](int c) { return std::isspace(c); });
-        return std::string(wsfront, std::find_if_not(s.rbegin(), std::string::const_reverse_iterator(wsfront), [](int c) { return std::isspace(c); }).base());
+        size_t pos = str.find_first_not_of(chars);
+        if (pos != MBSTRING::npos)
+            str.erase(0, pos);
     }
 
-    void delS(char *p)
+    void rtrim(MBSTRING &str, const MBSTRING &chars = " ")
     {
-        if (p != nullptr)
-            delete[] p;
+        size_t pos = str.find_last_not_of(chars);
+        if (pos != MBSTRING::npos)
+            str.erase(pos + 1);
     }
 
-    char *newS(size_t len)
+    inline MBSTRING trim(const MBSTRING &s)
     {
-        char *p = new char[len];
-        memset(p, 0, len);
+        MBSTRING chars = " ";
+        MBSTRING str = s;
+        ltrim(str, chars);
+        rtrim(str, chars);
+        return str;
+    }
+
+    void delP(void *ptr)
+    {
+        void **p = (void **)ptr;
+        if (*p)
+        {
+            free(*p);
+            *p = 0;
+        }
+    }
+
+    size_t getReservedLen(size_t len)
+    {
+        int blen = len + 1;
+
+        int newlen = (blen / 4) * 4;
+
+        if (newlen < blen)
+            newlen += 4;
+
+        return (size_t)newlen;
+    }
+
+    void *newP(size_t len)
+    {
+        void *p;
+        size_t newLen = getReservedLen(len);
+#if defined(BOARD_HAS_PSRAM) && defined(FIREBASE_USE_PSRAM)
+
+        if ((p = (void *)ps_malloc(newLen)) == 0)
+            return NULL;
+
+#else
+
+        if ((p = (void *)malloc(newLen)) == 0)
+            return NULL;
+
+#endif
+        memset(p, 0, newLen);
         return p;
+    }
+
+    void substr(MBSTRING &str, const char *s, int offset, size_t len)
+    {
+        if (!s)
+            return;
+
+        int slen = strlen(s);
+
+        if (slen == 0)
+            return;
+
+        int last = offset + len;
+
+        if (offset >= slen || len == 0 || last > slen)
+            return;
+
+        for (int i = offset; i < last; i++)
+            str += s[i];
     }
 
     char *newS(char *p, size_t len)
     {
-        delS(p);
-        p = newS(len);
+        delP(&p);
+        p = (char *)newP(len);
         return p;
     }
 
     char *newS(char *p, size_t len, char *d)
     {
-        delS(p);
-        p = newS(len);
+        delP(&p);
+        p = (char *)newP(len);
         strcpy(p, d);
         return p;
     }
@@ -287,7 +351,7 @@ public:
             if (tmp)
             {
                 response.connection = tmp;
-                delS(tmp);
+                delP(&tmp);
             }
             if (pmax < beginPos)
                 pmax = beginPos;
@@ -296,7 +360,7 @@ public:
             if (tmp)
             {
                 response.contentType = tmp;
-                delS(tmp);
+                delP(&tmp);
             }
 
             if (pmax < beginPos)
@@ -306,7 +370,7 @@ public:
             if (tmp)
             {
                 response.contentLen = atoi(tmp);
-                delS(tmp);
+                delP(&tmp);
             }
 
             if (pmax < beginPos)
@@ -318,7 +382,7 @@ public:
                 response.transferEnc = tmp;
                 if (stringCompare(tmp, 0, esp_line_notify_str_51))
                     response.isChunkedEnc = true;
-                delS(tmp);
+                delP(&tmp);
             }
 
             if (pmax < beginPos)
@@ -328,7 +392,7 @@ public:
             if (tmp)
             {
                 response.connection = tmp;
-                delS(tmp);
+                delP(&tmp);
             }
 
             if (pmax < beginPos)
@@ -338,7 +402,7 @@ public:
             if (tmp)
             {
                 response.quota.text.limit = atoi(tmp);
-                delS(tmp);
+                delP(&tmp);
             }
 
             if (pmax < beginPos)
@@ -348,7 +412,7 @@ public:
             if (tmp)
             {
                 response.quota.image.limit = atoi(tmp);
-                delS(tmp);
+                delP(&tmp);
             }
 
             if (pmax < beginPos)
@@ -358,7 +422,7 @@ public:
             if (tmp)
             {
                 response.quota.text.remaining = atoi(tmp);
-                delS(tmp);
+                delP(&tmp);
             }
 
             if (pmax < beginPos)
@@ -368,7 +432,7 @@ public:
             if (tmp)
             {
                 response.quota.image.remaining = atoi(tmp);
-                delS(tmp);
+                delP(&tmp);
             }
 
             if (pmax < beginPos)
@@ -378,7 +442,7 @@ public:
             if (tmp)
             {
                 response.quota.reset = atoi(tmp);
-                delS(tmp);
+                delP(&tmp);
             }
 
             if (pmax < beginPos)
@@ -389,7 +453,7 @@ public:
             {
 
                 response.payloadLen = atoi(tmp);
-                delS(tmp);
+                delP(&tmp);
             }
 
             if (response.httpCode == LINENOTIFY_ERROR_HTTP_CODE_OK || response.httpCode == LINENOTIFY_ERROR_HTTP_CODE_TEMPORARY_REDIRECT || response.httpCode == LINENOTIFY_ERROR_HTTP_CODE_PERMANENT_REDIRECT || response.httpCode == LINENOTIFY_ERROR_HTTP_CODE_MOVED_PERMANENTLY || response.httpCode == LINENOTIFY_ERROR_HTTP_CODE_FOUND)
@@ -401,7 +465,7 @@ public:
                 if (tmp)
                 {
                     response.location = tmp;
-                    delS(tmp);
+                    delP(&tmp);
                 }
             }
 
@@ -443,26 +507,26 @@ public:
             chunkState = 1;
             chunkedSize = -1;
             dataLen = 0;
-            buf = newS(bufLen);
+            buf = (char *)newP(bufLen);
             int readLen = readLine(stream, buf, bufLen);
             if (readLen)
             {
                 tmp = strP(esp_line_notify_str_48);
                 p1 = strpos(buf, tmp, 0);
-                delS(tmp);
+                delP(&tmp);
                 if (p1 == -1)
                 {
                     tmp = strP(esp_line_notify_str_4);
                     p1 = strpos(buf, tmp, 0);
-                    delS(tmp);
+                    delP(&tmp);
                 }
 
                 if (p1 != -1)
                 {
-                    tmp = newS(p1 + 1);
+                    tmp = (char *)newP(p1 + 1);
                     memcpy(tmp, buf, p1);
                     chunkedSize = hex2int(tmp);
-                    delS(tmp);
+                    delP(&tmp);
                 }
 
                 //last chunk
@@ -472,14 +536,14 @@ public:
             else
                 chunkState = 0;
 
-            delS(buf);
+            delP(&buf);
         }
         else
         {
 
             if (chunkedSize > -1)
             {
-                buf = newS(bufLen);
+                buf = (char *)newP(bufLen);
                 int readLen = readLine(stream, buf, bufLen);
 
                 if (readLen > 0)
@@ -505,7 +569,7 @@ public:
                     olen = -1;
                 }
 
-                delS(buf);
+                delP(&buf);
             }
         }
 
@@ -518,7 +582,7 @@ public:
         char *tmp = strP(beginH);
         int p1 = strpos(buf, tmp, beginPos);
         int ofs = 0;
-        delS(tmp);
+        delP(&tmp);
         if (p1 != -1)
         {
             tmp = strP(endH);
@@ -538,13 +602,13 @@ public:
             if (p2 == -1)
                 p2 = strlen(buf);
 
-            delS(tmp);
+            delP(&tmp);
 
             if (p2 != -1)
             {
                 beginPos = p2 + ofs;
                 int len = p2 - p1 - strlen_P(beginH);
-                tmp = newS(len + 1);
+                tmp = (char *)newP(len + 1);
                 memcpy(tmp, &buf[p1 + strlen_P(beginH)], len);
                 return tmp;
             }
@@ -568,12 +632,12 @@ public:
     bool stringCompare(const char *buf, int ofs, PGM_P beginH)
     {
         char *tmp = strP(beginH);
-        char *tmp2 = newS(strlen_P(beginH) + 1);
+        char *tmp2 = (char *)newP(strlen_P(beginH) + 1);
         memcpy(tmp2, &buf[ofs], strlen_P(beginH));
         tmp2[strlen_P(beginH)] = 0;
         bool ret = (strcmp(tmp, tmp2) == 0);
-        delS(tmp);
-        delS(tmp2);
+        delP(&tmp);
+        delP(&tmp2);
         return ret;
     }
 
@@ -606,8 +670,8 @@ public:
                 delay(10);
             }
 
-            delS(server1);
-            delS(server2);
+            delP(&server1);
+            delP(&server2);
         }
 
         client->_int.esp_line_notify_clock_rdy = now > client->_int.default_ts;
@@ -657,7 +721,7 @@ public:
 
     bool sdTest(fs::File file)
     {
-        std::string filepath = "/sdtest01.txt";
+        MBSTRING filepath = "/sdtest01.txt";
 
         if (!sdBegin(client->_int.sd_config.ss, client->_int.sd_config.sck, client->_int.sd_config.miso, client->_int.sd_config.mosi))
             return false;
@@ -690,15 +754,15 @@ public:
 
         SD_FS.remove(filepath.c_str());
 
-        std::string().swap(filepath);
+        MBSTRING().swap(filepath);
 
         return true;
     }
 
-    std::string getBoundary(size_t len)
+    MBSTRING getBoundary(size_t len)
     {
         char *tmp = strP(esp_line_notify_str_54);
-        char *buf = newS(len);
+        char *buf = (char *)newP(len);
         if (len)
         {
             --len;
@@ -711,15 +775,15 @@ public:
             }
             buf[len] = '\0';
         }
-        std::string s = buf;
-        delS(buf);
-        delS(tmp);
+        MBSTRING s = buf;
+        delP(&buf);
+        delP(&tmp);
         return s;
     }
 
     char *intStr(int value)
     {
-        char *buf = newS(36);
+        char *buf = (char *)newP(36);
         memset(buf, 0, 36);
         itoa(value, buf, 10);
         return buf;
@@ -735,7 +799,7 @@ public:
         return buf;
     }
 
-    std::string url_encode(std::string s)
+    MBSTRING url_encode(MBSTRING s)
     {
         const char *str = s.c_str();
         std::vector<char> v(s.size());
@@ -765,15 +829,15 @@ public:
             }
         }
 
-        return std::string(v.cbegin(), v.cend());
+        return std::string(v.cbegin(), v.cend()).c_str();
     }
 
-    void splitTk(const std::string &str, std::vector<std::string> &tk, const char *delim)
+    void splitTk(const MBSTRING &str, std::vector<MBSTRING> &tk, const char *delim)
     {
         std::size_t current, previous = 0;
         current = str.find(delim, previous);
-        std::string s;
-        while (current != std::string::npos)
+        MBSTRING s;
+        while (current != MBSTRING::npos)
         {
             s = str.substr(previous, current - previous);
             tk.push_back(s);
@@ -782,7 +846,7 @@ public:
         }
         s = str.substr(previous, current - previous);
         tk.push_back(s);
-        std::string().swap(s);
+        MBSTRING().swap(s);
     }
 
 private:

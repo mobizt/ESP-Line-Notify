@@ -16,6 +16,12 @@
 #endif
 
 #include <FS.h>
+
+#if defined(ESP32)
+#if defined(ESP_LINE_NOTIFY_USE_PSRAM)
+#define FIREBASEJSON_USE_PSRAM
+#endif
+#endif
 #include "json/FirebaseJson.h"
 
 #define SD_CS_PIN 15
@@ -61,8 +67,8 @@ struct esp_line_notify_sd_config_info_t
 
 struct esp_line_notify_file_info_t
 {
-    std::string path = "";
-    std::string name = "";
+    MBSTRING path = "";
+    MBSTRING name = "";
     LineNotify_Storage_Type storage_type = LineNotify_Storage_Type_Undefined;
 };
 
@@ -70,24 +76,24 @@ struct esp_line_notify_blob_data_info_t
 {
     const uint8_t *blob = nullptr;
     size_t size = 0;
-    std::string file_name = "";
+    MBSTRING file_name = "";
 };
 
 struct esp_line_notify_gmap_info_t
 {
-    std::string google_api_key = "";
-    std::string center = "";
-    std::string size = "640x640";
-    std::string map_type = "roadmap";
+    MBSTRING google_api_key = "";
+    MBSTRING center = "";
+    MBSTRING size = "640x640";
+    MBSTRING map_type = "roadmap";
     size_t zoom = 13;
-    std::string markers = "";
+    MBSTRING markers = "";
 };
 
 struct esp_line_notify_image_info_t
 {
     struct esp_line_notify_blob_data_info_t data;
     struct esp_line_notify_file_info_t file;
-    std::string url = "";
+    MBSTRING url = "";
 };
 
 struct esp_line_notify_sticker_info_t
@@ -118,7 +124,7 @@ struct esp_line_notify_internal_info_t
 struct esp_line_notify_sending_error_info_t
 {
     int code = 0;
-    std::string message = "";
+    MBSTRING message = "";
 };
 
 struct esp_line_notify_sending_quota_info_t
@@ -140,7 +146,7 @@ typedef struct esp_line_notify_sending_result_info_t
     struct esp_line_notify_sending_error_info_t error;
     struct esp_line_notify_sending_quotas_info_t quota;
     size_t progress = 0;
-    std::string file_name = "";
+    MBSTRING file_name = "";
 
 } LineNotifySendingResult;
 
@@ -153,10 +159,10 @@ struct esp_line_notify_server_response_data_t
     int payloadOfs = 0;
     bool isChunkedEnc = false;
     bool noContent = false;
-    std::string location = "";
-    std::string contentType = "";
-    std::string connection = "";
-    std::string transferEnc = "";
+    MBSTRING location = "";
+    MBSTRING contentType = "";
+    MBSTRING connection = "";
+    MBSTRING transferEnc = "";
     struct esp_line_notify_sending_quotas_info_t quota;
 };
 
@@ -164,8 +170,8 @@ typedef void (*LineNotifyProgressCallback)(LineNotifySendingResult);
 
 typedef struct esp_line_notify_client_info_t
 {
-    std::string token = "";
-    std::string message = "";
+    MBSTRING token = "";
+    MBSTRING message = "";
     struct esp_line_notify_sticker_info_t sticker;
     struct esp_line_notify_image_info_t image;
     struct esp_line_notify_gmap_info_t gmap;
@@ -179,7 +185,7 @@ typedef struct esp_line_notify_client_info_t
     ESP_LN_HTTPClient *httpClient;
 #endif
     LineNotifyProgressCallback sendingg_callback = NULL;
-} LineNotiFyClient;
+} LineNotifyClient;
 
 static const char esp_line_notify_str_1[] PROGMEM = "notify-api.line.me";
 static const char esp_line_notify_str_2[] PROGMEM = " ";

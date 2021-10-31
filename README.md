@@ -1,4 +1,4 @@
-# LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.8
+# LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.9
 
 This Arduino library allows ESp8266 and ESP32 to send LINE Notify message, sticker and images from flash and SD memory.
 
@@ -37,6 +37,30 @@ From Arduino IDE, goto menu **Sketch** -> **Include Library** -> **Add .ZIP Libr
 Go to menu **Files** -> **Examples** -> **ESP-Line-Notify-main** and choose one from examples
 
 
+### Use PSRAM
+
+
+To enable PSRAM in ESP32 module with on-board PSRAM chip, in Arduino IDE
+
+![Enable PSRAM in ESP32](/media/images/ESP32-PSRAM.png)
+
+
+In PlatformIO in VSCode IDE, add the following build_flags in your project's platformio.ini file
+
+```ini
+build_flags = -DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue
+```
+
+*When config the IDE or add the build flags to use PSRAM in the ESP32 dev boards that do not have on-board PSRAM chip, your device will be crashed (reset).
+
+
+To use PSRAM in this library, the macro in file [**FS_Config.h**](src/FS_Config.h) was set.
+
+```cpp
+#define ESP_LINE_NOTIFY_USE_PSRAM
+```
+
+
 
 ## Usages
 
@@ -45,7 +69,7 @@ Go to menu **Files** -> **Examples** -> **ESP-Line-Notify-main** and choose one 
   #include <ESP_Line_Notify.h>
 
   /* Define the LineNotifyClient object */
-  LineNotiFyClient client;
+  LineNotifyClient client;
 
 
   client.token = "Your Line Notify Access Token";
@@ -86,12 +110,12 @@ See [full examples](/examples) for complete usages.
 
 #### Send the Line Notify message.
 
-param **`client`** The LineNotiFyClient data which contains TCP client with message data
+param **`client`** The LineNotifyClient data which contains TCP client with message data
 
 return **`LineNotiFySendingResult`** type data to get the sending result.
 
 ```C++
-LineNotiFySendingResult send(LineNotiFyClient &client);
+LineNotiFySendingResult send(LineNotifyClient &client);
 ```
 
 
