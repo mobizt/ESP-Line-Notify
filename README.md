@@ -2,7 +2,7 @@
 
 This Arduino library allows ESp8266 and ESP32 to send LINE Notify message, sticker and images from flash and SD memory.
 
-The library was test and work well with ESP8266 and ESP32 based module.
+The library was test and work well with ESP8266 and ESP32 based modules.
 
 Copyright (c) 2021 K. Suwatchai (Mobizt).
 
