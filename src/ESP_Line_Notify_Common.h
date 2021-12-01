@@ -2,7 +2,10 @@
 #define ESP_LINE_NOTIFY_COMMON_H
 
 #include <Arduino.h>
+#if defined(DEFAULT_SD_FS)
 #include <SPI.h>
+#endif
+
 #include <time.h>
 #include <vector>
 #include <functional>
@@ -17,7 +20,7 @@
 
 #include <FS.h>
 
-#if defined(ESP32)
+#if defined(ESP32) || defined(ESP8266)
 #if defined(ESP_LINE_NOTIFY_USE_PSRAM)
 #define FIREBASEJSON_USE_PSRAM
 #endif

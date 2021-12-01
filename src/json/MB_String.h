@@ -1,9 +1,27 @@
 
 /**
- * Mobizt's PSRAM supported String, version 1.0.0
+ * Mobizt's PSRAM supported String, version 1.1.2
  * 
  * 
- * October 28, 2021
+ * November 29, 2021
+ * 
+ * Changes Log
+ * 
+ * v1.1.2
+ * - Fix substring with zero length return the original string issue.
+ * 
+ * v1.1.1
+ * - Fix possible ESP8266 code exit without resetting the external heap stack
+ * 
+ * v1.1.0
+ * - Add support ESP8266 external virtual RAM (SRAM or PSRAM)
+ * 
+ * v1.0.1
+ * - Add trim function
+ * - Add version enum
+ * 
+ * v1.0.0
+ * - Initial release
  * 
  * The MIT License (MIT)
  * Copyright (c) 2021 K. Suwatchai (Mobizt)
@@ -34,13 +52,29 @@
 #include <string>
 #include <strings.h>
 
+#define MB_STRING_MAJOR 1
+#define MB_STRING_MINOR 1
+#define MB_STRING_PATCH 2
+
+#if defined(ESP8266) && defined(MMU_EXTERNAL_HEAP) && defined(MB_STRING_USE_PSRAM)
+#include <umm_malloc/umm_malloc.h>
+#include <umm_malloc/umm_heap_select.h>
+#define ESP8266_USE_EXTERNAL_HEAP
+#endif
+
 class MB_String
 {
 public:
-    MB_String(){};
+    MB_String()
+    {
+#if defined(ESP8266_USE_EXTERNAL_HEAP)
+        //reserve default 1 byte external heap to refer to its pointer later
+        reset(1);
+#endif
+    };
     ~MB_String()
     {
-        clear();
+        allocate(0, false);
     };
 
     MB_String(const char *cstr)
@@ -165,6 +199,37 @@ public:
         }
 
         return *this;
+    }
+
+    void trim()
+    {
+        int p1 = 0, p2 = length() - 1;
+        while (p1 < (int)length())
+        {
+            if (buf[p1] != ' ')
+                break;
+            p1++;
+        }
+
+        while (p2 >= 0)
+        {
+            if (buf[p2] != ' ')
+                break;
+            p2--;
+        }
+
+        if (p1 == (int)length() && p2 < 0)
+        {
+            clear();
+            return;
+        }
+
+        if (p2 >= p1 && p2 >= 0 && p1 < (int)length())
+        {
+            memmove(buf, buf + p1, p2 - p1 + 1);
+            buf[p2 - p1 + 1] = '\0';
+            _reserve(p2 - p1 + 1, true);
+        }
     }
 
     void append(const char *cstr, size_t n)
@@ -335,9 +400,6 @@ public:
     {
         MB_String str;
 
-        if (offset >= length())
-            return *this;
-
         if (length() > 0 && offset < length())
         {
             if (len > length() - offset)
@@ -361,8 +423,32 @@ public:
 
     void clear()
     {
+#if defined(ESP8266_USE_EXTERNAL_HEAP)
+        reset(1);
+#else
         allocate(0, false);
+#endif
     }
+
+#if defined(ESP8266_USE_EXTERNAL_HEAP)
+    void reset(size_t len)
+    {
+        if (len == 0)
+            len = 4;
+        ESP.setExternalHeap();
+        if (buf)
+            buf = (char *)realloc(buf, len);
+        else
+            buf = (char *)malloc(len);
+        ESP.resetHeap();
+
+        if (buf)
+        {
+            bufLen = len;
+            memset(buf, 0, len);
+        }
+    }
+#endif
 
     void resize(size_t len)
     {
@@ -678,6 +764,7 @@ private:
 
     void allocate(size_t len, bool shrink)
     {
+
         if (len == 0)
         {
             if (buf)
@@ -690,6 +777,10 @@ private:
         if (len > bufLen || shrink)
         {
 
+#if defined(ESP8266_USE_EXTERNAL_HEAP)
+            ESP.setExternalHeap();
+#endif
+
             if (shrink || (bufLen > 0 && buf))
             {
                 int slen = length();
@@ -699,24 +790,30 @@ private:
 #else
                 buf = (char *)realloc(buf, len);
 #endif
-
-                if (!buf)
-                    return;
-                buf[slen] = '\0';
-                bufLen = len;
+                if (buf)
+                {
+                    buf[slen] = '\0';
+                    bufLen = len;
+                }
             }
             else
             {
+                bool nn = false;
 #if defined(BOARD_HAS_PSRAM) && defined(MB_STRING_USE_PSRAM)
-                if ((buf = (char *)ps_malloc(len)) == 0)
-                    return;
+                nn = ((buf = (char *)ps_malloc(len)) > 0);
 #else
-                if ((buf = (char *)malloc(len)) == 0)
-                    return;
+                nn = ((buf = (char *)malloc(len)) > 0);
 #endif
-                buf[0] = '\0';
-                bufLen = len;
+                if (nn)
+                {
+                    buf[0] = '\0';
+                    bufLen = len;
+                }
             }
+
+#if defined(ESP8266_USE_EXTERNAL_HEAP)
+            ESP.resetHeap();
+#endif
         }
     }
 

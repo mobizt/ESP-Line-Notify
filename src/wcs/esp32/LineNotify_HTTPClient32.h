@@ -1,5 +1,5 @@
 /**
- * HTTP Client wrapper v1.0.0 for ESP Line Notify
+ * HTTP Client wrapper v1.0.1 for ESP Line Notify
  * 
  * The MIT License (MIT)
  * Copyright (c) 2021 K. Suwatchai (Mobizt)
@@ -35,8 +35,9 @@
 #include <Arduino.h>
 #include <WiFiClient.h>
 #include <FS.h>
+#if defined(DEFAULT_FLASH_FS)
 #include <SPIFFS.h>
-#include <SD.h>
+#endif
 #include "FS_Config.h"
 #include <WiFiClientSecure.h>
 #if __has_include(<WiFiEspAT.h>) || __has_include(<espduino.h>)
@@ -49,8 +50,12 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#if defined(DEFAULT_FLASH_FS)
 #define FLASH_FS DEFAULT_FLASH_FS
+#endif
+#if defined(DEFAULT_SD_FS)
 #define SD_FS DEFAULT_SD_FS
+#endif
 #define FORMAT_FLASH FORMAT_FLASH_IF_MOUNT_FAILED
 
 #include "wcs/LineNotify_HTTPCode.h"

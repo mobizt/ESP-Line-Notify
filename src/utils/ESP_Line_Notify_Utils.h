@@ -41,7 +41,6 @@ class ESP_Line_Notify_Utils
     friend class ESP_Line_Notify;
 
 public:
-    
     LineNotifyClient *client = nullptr;
 
     ESP_Line_Notify_Utils(LineNotifyClient c)
@@ -248,18 +247,25 @@ public:
     {
         void *p;
         size_t newLen = getReservedLen(len);
-#if defined(BOARD_HAS_PSRAM) && defined(FIREBASE_USE_PSRAM)
 
-        if ((p = (void *)ps_malloc(newLen)) == 0)
-            return NULL;
-
-#else
-
-        if ((p = (void *)malloc(newLen)) == 0)
-            return NULL;
-
+#if defined(ESP8266_USE_EXTERNAL_HEAP)
+        ESP.setExternalHeap();
 #endif
-        memset(p, 0, newLen);
+
+        bool nn = false;
+#if defined(BOARD_HAS_PSRAM) && defined(FIREBASE_USE_PSRAM)
+        nn = (p = (void *)ps_malloc(newLen)) > 0;
+#else
+        nn = (p = (void *)malloc(newLen)) > 0;
+#endif
+
+#if defined(ESP8266_USE_EXTERNAL_HEAP)
+        ESP.resetHeap();
+#endif
+        if (nn)
+            memset(p, 0, newLen);
+        else
+            return NULL;
         return p;
     }
 
@@ -625,7 +631,9 @@ public:
         {
             client->_int.esp_line_notify_sd_used = false;
             client->_int.esp_line_notify_sd_rdy = false;
+#if defined(SD_FS)
             SD_FS.end();
+#endif
         }
     }
 
@@ -658,7 +666,7 @@ public:
             char *server1 = strP(esp_line_notify_str_52);
             char *server2 = strP(esp_line_notify_str_53);
 
-           configTime(gmtOffset * 3600, 0, server1, server2);
+            configTime(gmtOffset * 3600, 0, server1, server2);
 
             now = time(nullptr);
             unsigned long timeout = millis();
@@ -683,6 +691,7 @@ public:
 
     bool sdBegin(int8_t ss, int8_t sck, int8_t miso, int8_t mosi)
     {
+#if defined(SD_FS)
         if (client)
         {
             client->_int.sd_config.sck = sck;
@@ -704,10 +713,13 @@ public:
         else
             return SD_FS.begin(SD_CS_PIN);
 #endif
+#endif
+        return false;
     }
 
     bool flashTest()
     {
+#if defined(FLASH_FS)
 #if defined(ESP32)
         if (FORMAT_FLASH == 1)
             client->_int.esp_line_notify_flash_rdy = FLASH_FS.begin(true);
@@ -716,11 +728,13 @@ public:
 #elif defined(ESP8266)
         client->_int.esp_line_notify_flash_rdy = FLASH_FS.begin();
 #endif
+#endif
         return client->_int.esp_line_notify_flash_rdy;
     }
 
     bool sdTest(fs::File file)
     {
+#if defined(SD_FS)
         MBSTRING filepath = "/sdtest01.txt";
 
         if (!sdBegin(client->_int.sd_config.ss, client->_int.sd_config.sck, client->_int.sd_config.miso, client->_int.sd_config.mosi))
@@ -757,6 +771,8 @@ public:
         MBSTRING().swap(filepath);
 
         return true;
+#endif
+        return false;
     }
 
     MBSTRING getBoundary(size_t len)

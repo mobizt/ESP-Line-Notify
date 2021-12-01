@@ -1,7 +1,7 @@
 /**
- * LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.8
+ * LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.10
  * 
- * June 26, 2021
+ * December 1, 2021
  *
  * This library provides ESP32 to perform REST API call to LINE Notify service to post the several message types.
  *
@@ -46,6 +46,7 @@ ESP_Line_Notify::~ESP_Line_Notify()
 
 bool ESP_Line_Notify::sdBegin(int8_t ss, int8_t sck, int8_t miso, int8_t mosi)
 {
+#if defined(SD_FS)
     if (_client)
     {
         _client->_int.sd_config.sck = sck;
@@ -66,6 +67,7 @@ bool ESP_Line_Notify::sdBegin(int8_t ss, int8_t sck, int8_t miso, int8_t mosi)
         return SD_FS.begin(ss);
     else
         return SD_FS.begin(SD_CS_PIN);
+#endif
 #endif
     return false;
 }
@@ -228,13 +230,17 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotifyClient &client)
                     client.sendingg_callback(result);
                 return result;
             }
+#if defined(SD_FS)
             client._int.esp_line_notify_file = SD_FS.open(fpath.c_str(), FILE_READ);
+#endif
         }
         else if (client.image.file.storage_type == LineNotify_Storage_Type_Flash)
         {
             if (!client._int.esp_line_notify_flash_rdy)
                 ut->flashTest();
+#if defined(FLASH_FS)
             client._int.esp_line_notify_file = FLASH_FS.open(fpath.c_str(), "r");
+#endif
         }
 
         if (client._int.esp_line_notify_file)
@@ -293,7 +299,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotifyClient &client)
         {
             int available = client._int.esp_line_notify_file.available();
             int bufLen = 1024;
-            uint8_t *buf = (uint8_t*)ut->newP(bufLen + 1);
+            uint8_t *buf = (uint8_t *)ut->newP(bufLen + 1);
             size_t read = 0;
             while (available)
             {
@@ -315,7 +321,7 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotifyClient &client)
             int len = client.image.data.size;
             int available = len;
             int bufLen = 1024;
-            uint8_t *buf = (uint8_t*)ut->newP(bufLen + 1);
+            uint8_t *buf = (uint8_t *)ut->newP(bufLen + 1);
             size_t pos = 0;
             while (available)
             {
@@ -453,7 +459,7 @@ bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
                 if (chunkIdx == 0)
                 {
                     //the first chunk can be http response header
-                    header = (char*)ut->newP(chunkBufSize);
+                    header = (char *)ut->newP(chunkBufSize);
                     hstate = 1;
                     int readLen = ut->readLine(stream, header, chunkBufSize);
                     int pos = 0;
@@ -479,7 +485,7 @@ bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
                     if (isHeader)
                     {
                         //read one line of next header field until the empty header has found
-                        tmp = (char*)ut->newP(chunkBufSize);
+                        tmp = (char *)ut->newP(chunkBufSize);
                         int readLen = ut->readLine(stream, tmp, chunkBufSize);
                         bool headerEnded = false;
 
@@ -531,7 +537,7 @@ bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
                         {
 
                             pChunkIdx++;
-                            pChunk = (char*)ut->newP(chunkBufSize + 1);
+                            pChunk = (char *)ut->newP(chunkBufSize + 1);
 
                             if (response.isChunkedEnc)
                                 delay(10);

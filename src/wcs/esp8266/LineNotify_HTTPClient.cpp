@@ -1,5 +1,5 @@
 /**
- * HTTP Client wrapper v1.0.1 for ESP Line Notify
+ * HTTP Client wrapper v1.0.2 for ESP Line Notify
  * 
  * The MIT License (MIT)
  * Copyright (c) 2021 K. Suwatchai (Mobizt)
@@ -165,25 +165,29 @@ void ESP_LN_HTTPClient::setCACertFile(const char *caCertFile, uint8_t storageTyp
     fs::File f;
     if (storageType == 1)
     {
+#if defined(FLASH_FS)
       FLASH_FS.begin();
       if (FLASH_FS.exists(caCertFile))
         f = FLASH_FS.open(caCertFile, "r");
+#endif
     }
     else if (storageType == 2)
     {
+#if defined(SD_FS)
       SD_FS.begin(_sdPin);
       if (SD_FS.exists(caCertFile))
         f = SD_FS.open(caCertFile, FILE_READ);
+#endif
     }
     if (f)
     {
-        size_t len = f.size();
-        uint8_t *der = new uint8_t[len];
-        if (f.available())
-          f.read(der, len);
-        f.close();
-        _wcs->setTrustAnchors(new X509List(der, len));
-        delete[] der;
+      size_t len = f.size();
+      uint8_t *der = new uint8_t[len];
+      if (f.available())
+        f.read(der, len);
+      f.close();
+      _wcs->setTrustAnchors(new X509List(der, len));
+      delete[] der;
     }
     _certType = 2;
   }

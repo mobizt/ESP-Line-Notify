@@ -1,4 +1,4 @@
-# LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.9
+# LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.10
 
 This Arduino library allows ESp8266 and ESP32 to send LINE Notify message, sticker and images from flash and SD memory.
 
@@ -37,7 +37,7 @@ From Arduino IDE, goto menu **Sketch** -> **Include Library** -> **Add .ZIP Libr
 Go to menu **Files** -> **Examples** -> **ESP-Line-Notify-main** and choose one from examples
 
 
-### Use PSRAM
+### Use SRAM/PSRAM in ESP32 and ESP8266
 
 
 To enable PSRAM in ESP32 module with on-board PSRAM chip, in Arduino IDE
@@ -54,7 +54,39 @@ build_flags = -DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue
 *When config the IDE or add the build flags to use PSRAM in the ESP32 dev boards that do not have on-board PSRAM chip, your device will be crashed (reset).
 
 
-To use PSRAM in this library, the macro in file [**FS_Config.h**](src/FS_Config.h) was set.
+In ESP8266, to use external Heap from 1 Mbit SRAM 23LC1024, choose the MMU **option 5**, 128K External 23LC1024.
+
+![MMU VM 128K](/media/images/ESP8266_VM.png)
+
+To use external Heap from PSRAM, choose the MMU **option 6**, 1M External 64 MBit PSRAM.
+
+In PlatformIO, **PIO_FRAMEWORK_ARDUINO_MMU_EXTERNAL_128K** or **PIO_FRAMEWORK_ARDUINO_MMU_EXTERNAL_1024K** build flag should be assigned in platformio.ini.
+
+```ini
+[env:d1_mini]
+platform = espressif8266
+build_flags = -D PIO_FRAMEWORK_ARDUINO_MMU_EXTERNAL_128K
+board = d1_mini
+framework = arduino
+monitor_speed = 115200
+```
+
+The connection between SRAM/PSRAM and ESP8266
+
+```
+23LC1024/ESP-PSRAM64                ESP8266
+
+CS (Pin 1)                          GPIO15
+SCK (Pin 6)                         GPIO14
+MOSI (Pin 5)                        GPIO13
+MISO (Pin 2)                        GPIO12
+/HOLD (Pin 7 on 23LC1024 only)      3V3
+Vcc (Pin 8)                         3V3
+Vcc (Pin 4)                         GND
+```
+
+
+To use SRAM/PSRAM in this library, the macro in file [**FS_Config.h**](src/FS_Config.h) was set.
 
 ```cpp
 #define ESP_LINE_NOTIFY_USE_PSRAM
