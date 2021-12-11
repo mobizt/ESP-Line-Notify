@@ -23,6 +23,8 @@ This following devices were tested and work well.
 
 * Show upload progress via callback function.
 
+* Support SRAM/PSRAM in ESP8266 and ESP32.
+
 * Flash and SD File systems can be configured to use LittleFS, FFat and SD_MMC
 
 

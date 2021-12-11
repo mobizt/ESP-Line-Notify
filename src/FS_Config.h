@@ -5,7 +5,7 @@
  * LittleFS File system
  * 
  * #include <LittleFS.h>
- * #define DEFAULT_FLASH_FS LittleFS //For ESP8266 LitteFS
+ * #define DEFAULT_FLASH_FS LittleFS //For LitteFS
  * 
  * 
  * FFat File system
