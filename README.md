@@ -1,6 +1,6 @@
 # LINE Notify Arduino Library for ESP8266 and ESP32
 
-This Arduino library allows ESp8266 and ESP32 to send LINE Notify message, sticker and images.
+This Arduino library allows ESP8266 and ESP32 to send LINE Notify message, sticker and images.
 
 The library supported Ethernet in ESP32 using LAN8720, TLK110 and IP101 Ethernet modules and ESP8266 using ENC28J60, W5100 and W5500 Ethernet modules
 
