@@ -1,19 +1,33 @@
-# LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.10
+# LINE Notify Arduino Library for ESP8266 and ESP32
 
-This Arduino library allows ESp8266 and ESP32 to send LINE Notify message, sticker and images from flash and SD memory.
+This Arduino library allows ESp8266 and ESP32 to send LINE Notify message, sticker and images.
 
-The library was test and work well with ESP8266 and ESP32 based modules.
+The library supported Ethernet in ESP32 using LAN8720, TLK110 and IP101 Ethernet modules and ESP8266 using ENC28J60, W5100 and W5500 Ethernet modules
 
-Copyright (c) 2021 K. Suwatchai (Mobizt).
+This library allows you to use external Arduino Clients network interfaces e.g. WiFiClient, EthernetClient and GSMClient.
+
+To use external Client, see the [ExternalClient examples](/examples/ExternalClient).
+
+The flash and SD filesystems supports depend on the devices and third party filesystems libraries installed.
+
+
+Copyright (c) 2022 K. Suwatchai (Mobizt).
 
 
 ## Tested Devices
 
 This following devices were tested and work well.
 
- * Wemos D1 Mini
+ * Sparkfun ESP32 Thing
  * NodeMCU-32
  * WEMOS LOLIN32
+ * TTGO T8 V1.8
+ * M5Stack ESP32
+ * NodeMCU ESP8266
+ * Wemos D1 Mini (ESP8266)
+ * Arduino MKR WiFi 1010
+ * LAN8720 Ethernet PHY
+ * ENC28J60 SPI Ethernet module
 
 
  
@@ -103,18 +117,18 @@ To use SRAM/PSRAM in this library, the macro in file [**FS_Config.h**](src/FS_Co
   #include <ESP_Line_Notify.h>
 
   /* Define the LineNotifyClient object */
-  LineNotifyClient client;
+  LineNotifyClient line;
 
 
-  client.token = "Your Line Notify Access Token";
-  client.message = "Hello world";
+  line.token = "Your Line Notify Access Token";
+  line.message = "Hello world";
 
   //The image to send
-  client.image.file.path = "/test.jpg";
-  client.image.file.storage_type = LineNotify_Storage_Type_Flash; //or LineNotify_Storage_Type_SD
-  client.image.file.name = "test.jpg";
+  line.image.file.path = "/test.jpg";
+  line.image.file.storage_type = LineNotify_Storage_Type_Flash; //or LineNotify_Storage_Type_SD
+  line.image.file.name = "test.jpg";
 
-  LineNotiFySendingResult result = lineNotify.send(client);
+  LineNotiFySendingResult result = lineNotify.send(line);
 
   if (result.status == LineNotify_Sending_Success)
   {
@@ -167,9 +181,71 @@ param **`mosi`** SPI MOSI pin.
 
 return **`Boolean`** type status indicates the success of the operation.
 
-```C++
-bool sdBegin(int8_t ss = -1, int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1);
+```cpp
+bool sdBegin( int8_t ss = -1, int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1);
 ```
+
+
+
+#### SD card config with SD FS configurations (ESP8266 only).
+
+param **`sdFSConfig`** The pointer to SDFSConfig object (ESP8266 only).
+
+return **`Boolean`** type status indicates the success of the operation.
+
+```cpp
+bool sdBegin(SDFSConfig *sdFSConfig);
+```
+
+
+
+#### SD card config with chip select and SPI configuration (ESP32 only).
+
+param **`ss`** SPI Chip/Slave Select pin.
+
+param **`spiConfig`** The pointer to SPIClass object for SPI configuartion (ESP32 only).
+
+return **`Boolean`** type status indicates the success of the operation.
+
+```cpp
+bool sdBegin(int8_t ss, SPIClass *spiConfig = nullptr);
+```
+
+
+#### SD card config with SdFat SPI and pins configurations (ESP32 with SdFat included only).
+
+param **`sdFatSPIConfig`** The pointer to SdSpiConfig object for SdFat SPI configuration.
+
+param **`ss`** SPI Chip/Slave Select pin.
+
+param **`sck`** SPI Clock pin.
+
+param **`miso`** SPI MISO pin.
+
+param **`mosi`** SPI MOSI pin.
+
+return **`Boolean`** type status indicates the success of the operation.
+
+```cpp
+bool sdBegin(SdSpiConfig *sdFatSPIConfig, int8_t ss = -1, int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1);
+```
+
+
+
+#### Initialize the SD_MMC card (ESP32 only).
+
+param **`mountpoint`** The mounting point.
+
+param **`mode1bit`** Allow 1 bit data line (SPI mode).
+
+param **`format_if_mount_failed`** Format SD_MMC card if mount failed.
+
+return **`Boolean`** type status indicates the success of the operation.
+
+```cpp
+bool sdMMCBegin(<string> mountpoint = "/sdcard", bool mode1bit = false, bool format_if_mount_failed = false);
+```
+
 
    
 
@@ -179,7 +255,7 @@ bool sdBegin(int8_t ss = -1, int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1
 
 The MIT License (MIT)
 
-Copyright (c) 2021 K. Suwatchai (Mobizt)
+Copyright (c) 2022 K. Suwatchai (Mobizt)
 
 
 Permission is hereby granted, free of charge, to any person returning a copy of

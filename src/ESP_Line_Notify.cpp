@@ -1,33 +1,30 @@
 /**
- * LINE Notify Arduino Library for ESP8266 and ESP32 version 1.0.10
- * 
- * December 1, 2021
+ * LINE Notify Arduino Library for Arduino version 2.0.0
  *
- * This library provides ESP32 to perform REST API call to LINE Notify service to post the several message types.
+ * Created May 5, 2022
  *
- * The library was test and work well with ESP32s based module.
- * 
+ *
  * The MIT License (MIT)
- * Copyright (c) 2021 K. Suwatchai (Mobizt)
- * 
- * 
+ * Copyright (c) 2022 K. Suwatchai (Mobizt)
+ *
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
  * the Software without restriction, including without limitation the rights to
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
  * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+ */
 
 #ifndef ESP_LINE_NOTIFY_CPP
 #define ESP_LINE_NOTIFY_CPP
@@ -36,47 +33,23 @@
 
 ESP_Line_Notify::ESP_Line_Notify()
 {
+    if (!mbfs)
+        mbfs = new MB_FS();
 }
 
 ESP_Line_Notify::~ESP_Line_Notify()
 {
     if (ut)
         delete ut;
-}
 
-bool ESP_Line_Notify::sdBegin(int8_t ss, int8_t sck, int8_t miso, int8_t mosi)
-{
-#if defined(SD_FS)
-    if (_client)
-    {
-        _client->_int.sd_config.sck = sck;
-        _client->_int.sd_config.miso = miso;
-        _client->_int.sd_config.mosi = mosi;
-        _client->_int.sd_config.ss = ss;
-    }
-#if defined(ESP32)
-    if (ss > -1)
-    {
-        SPI.begin(sck, miso, mosi, ss);
-        return SD_FS.begin(ss, SPI);
-    }
-    else
-        return SD_FS.begin();
-#elif defined(ESP8266)
-    if (ss > -1)
-        return SD_FS.begin(ss);
-    else
-        return SD_FS.begin(SD_CS_PIN);
-#endif
-#endif
-    return false;
+    if (mbfs)
+        delete mbfs;
 }
 
 LineNotifySendingResult ESP_Line_Notify::send(LineNotifyClient &client)
 {
-    _client = &client;
     result.status = LineNotify_Sending_None;
-    result.error.code = 0;
+    result.error.code = ESP_LINE_NOTIFY_ERROR_HTTP_CODE_UNDEFINED;
     result.error.message.clear();
     result.quota.image.limit = 0;
     result.quota.image.remaining = 0;
@@ -84,44 +57,49 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotifyClient &client)
     result.quota.text.remaining = 0;
     result.quota.reset = 0;
 
+    if (!client.tcpClient)
+        client.tcpClient = new ESP_LINE_NOTIFY_TCP_CLIENT();
+
+#if defined(ESP8266)
+    client.tcpClient->setSPIEthernet(&spi_ethernet_module);
+#endif
+
     if (!reconnect(client, 0))
     {
-        if (client.sendingg_callback)
-            client.sendingg_callback(result);
+        result.status = LineNotify_Sending_Error;
+        result.error.code = ESP_LINE_NOTIFY_ERROR_TCP_ERROR_CONNECTION_LOST;
+        result.error.message.clear();
+        errorToString(result.error.code, result.error.message);
+
+        if (client.sending_callback)
+            client.sending_callback(result);
+
+        closeSession(client);
         return result;
     }
 
     result.status = LineNotify_Sending_In_Progress;
 
     if (!ut)
-        ut = new ESP_Line_Notify_Utils(client);
+        ut = new ESP_Line_Notify_Utils(&client, mbfs);
 
-    if (!client.httpClient)
-    {
-#if defined(ESP32)
-        client.httpClient = new ESP_LN_HTTPClient32();
-#elif defined(ESP8266)
-        client.httpClient = new ESP_LN_HTTPClient();
-#endif
-    }
+    client.tcpClient->setCACert(nullptr);
 
-    client.httpClient->setCACert(nullptr);
+    MB_String host = esp_line_notify_str_1;
+    int responseCode = 0;
 
-    MBSTRING host = "";
-    ut->appendP(host, esp_line_notify_str_1);
-
-    client.httpClient->begin(host.c_str(), 443);
+    client.tcpClient->begin(host.c_str(), 443, &responseCode);
     uint32_t contentLength = 0;
     int ret = 0;
 
-    MBSTRING textPayload = "";
-    MBSTRING header = "";
-    MBSTRING multipath = "";
-    MBSTRING boundary = ut->getBoundary(10);
+    MB_String textPayload;
+    MB_String header;
+    MB_String multipath;
+    MB_String boundary = ut->getBoundary(10);
 
     result.status = LineNotify_Sending_Begin;
-    if (client.sendingg_callback)
-        client.sendingg_callback(result);
+    if (client.sending_callback)
+        client.sending_callback(result);
 
     if (client.message.length() > 0)
     {
@@ -130,139 +108,111 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotifyClient &client)
 
         if (client.gmap.center.length() > 0)
         {
-            ut->appendP(textPayload, esp_line_notify_str_68);
-            ut->appendP(textPayload, esp_line_notify_str_61);
+            textPayload += esp_line_notify_str_68;
+            textPayload += esp_line_notify_str_61;
             textPayload += client.gmap.center;
-            ut->appendP(textPayload, esp_line_notify_str_67);
+            textPayload += esp_line_notify_str_67;
             textPayload += client.gmap.map_type;
-            char *tmp = ut->intStr(client.gmap.zoom);
-            ut->appendP(textPayload, esp_line_notify_str_63);
-            textPayload += tmp;
-            ut->delP(&tmp);
+            textPayload += esp_line_notify_str_63;
+            textPayload += client.gmap.zoom;
         }
 
-        ut->appendP(textPayload, esp_line_notify_str_4);
+        textPayload += esp_line_notify_str_4;
     }
 
     if (client.notification_disabled)
     {
         setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_notification_disabled, "");
-        char *tmp = ut->boolStr(true);
-        textPayload += tmp;
-        ut->delP(&tmp);
-        ut->appendP(textPayload, esp_line_notify_str_4);
+        textPayload += true;
+        textPayload += esp_line_notify_str_4;
     }
 
     if (client.sticker.id > 0 && client.sticker.package_id > 0)
     {
         setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_sticker_package_id, "");
-        char *tmp = ut->intStr(client.sticker.package_id);
-        textPayload += tmp;
-        ut->delP(&tmp);
-        ut->appendP(textPayload, esp_line_notify_str_4);
+        textPayload += client.sticker.package_id;
+        textPayload += esp_line_notify_str_4;
 
         setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_sticker_id, "");
-        tmp = ut->intStr(client.sticker.id);
-        textPayload += tmp;
-        ut->delP(&tmp);
-        ut->appendP(textPayload, esp_line_notify_str_4);
+        textPayload += client.sticker.id;
+        textPayload += esp_line_notify_str_4;
     }
 
     if (client.image.url.length() > 0)
     {
         setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_image_thumbnail, "");
         textPayload += client.image.url;
-        ut->appendP(textPayload, esp_line_notify_str_4);
+        textPayload += esp_line_notify_str_4;
 
         setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_image_full_size, "");
         textPayload += client.image.url;
-        ut->appendP(textPayload, esp_line_notify_str_4);
+        textPayload += esp_line_notify_str_4;
     }
 
     if (client.gmap.google_api_key.length() > 0 && client.gmap.center.length() > 0)
     {
-        MBSTRING url = "";
-        ut->appendP(url, esp_line_notify_str_60);
+        MB_String url = esp_line_notify_str_60;
         url += client.gmap.google_api_key;
-        ut->appendP(url, esp_line_notify_str_62);
+        url += esp_line_notify_str_62;
         url += client.gmap.center;
-        char *tmp = ut->intStr(client.gmap.zoom);
-        ut->appendP(url, esp_line_notify_str_63);
-        url += tmp;
-        ut->delP(&tmp);
-        ut->appendP(url, esp_line_notify_str_64);
+        url += esp_line_notify_str_63;
+        url += client.gmap.zoom;
+        url += esp_line_notify_str_64;
         url += client.gmap.map_type;
-        ut->appendP(url, esp_line_notify_str_65);
+        url += esp_line_notify_str_65;
         url += client.gmap.size;
 
-        std::vector<MBSTRING> mkrs = std::vector<MBSTRING>();
+        MB_VECTOR<MB_String> mkrs = MB_VECTOR<MB_String>();
         ut->splitTk(client.gmap.markers, mkrs, " ");
         for (size_t i = 0; i < mkrs.size(); i++)
         {
-            ut->appendP(url, esp_line_notify_str_66);
+            url += esp_line_notify_str_66;
             url += ut->url_encode(mkrs[i]);
         }
 
         setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_image_thumbnail, "");
         textPayload += url;
-        ut->appendP(textPayload, esp_line_notify_str_4);
+        textPayload += esp_line_notify_str_4;
 
         setMultipartHeader(textPayload, boundary, esp_line_notify_multipart_header_type_image_full_size, "");
         textPayload += url;
-        ut->appendP(textPayload, esp_line_notify_str_4);
+        textPayload += esp_line_notify_str_4;
     }
+
+    int sz = -1;
 
     if (client.image.file.path.length() > 0)
     {
-        MBSTRING fpath = "";
+        MB_String fpath;
         if (client.image.file.path[0] != '/')
             fpath = "/";
         fpath += client.image.file.path;
 
-        if (client.image.file.storage_type == LineNotify_Storage_Type_SD)
-        {
-            if (!ut->sdTest(client._int.esp_line_notify_file))
-            {
-                client._int.http_code = LINENOTIFY_ERROR_FILE_IO_ERROR;
-                ut->appendP(result.error.message, esp_line_notify_str_55, true);
+        sz = mbfs->open(fpath, mbfs_type client.image.file.storage_type, mb_fs_open_mode_read);
 
-                if (client.sendingg_callback)
-                    client.sendingg_callback(result);
-                return result;
-            }
-#if defined(SD_FS)
-            client._int.esp_line_notify_file = SD_FS.open(fpath.c_str(), FILE_READ);
-#endif
-        }
-        else if (client.image.file.storage_type == LineNotify_Storage_Type_Flash)
+        if (sz < 0)
         {
-            if (!client._int.esp_line_notify_flash_rdy)
-                ut->flashTest();
-#if defined(FLASH_FS)
-            client._int.esp_line_notify_file = FLASH_FS.open(fpath.c_str(), "r");
-#endif
-        }
+            result.status = LineNotify_Sending_Error;
+            result.error.code = sz;
+            result.error.message.clear();
+            errorToString(result.error.code, result.error.message);
 
-        if (client._int.esp_line_notify_file)
-        {
-            result.file_name = client.image.file.name;
-            client._int.upload_len = client._int.esp_line_notify_file.size();
-            setMultipartHeader(multipath, boundary, esp_line_notify_multipart_header_type_undefined, client.image.file.name.c_str());
-            contentLength = textPayload.length() + multipath.length() + client._int.esp_line_notify_file.size() + boundary.length() + 6;
-        }
-        else
-        {
-            ut->appendP(result.error.message, esp_line_notify_str_55, true);
-            if (client.sendingg_callback)
-                client.sendingg_callback(result);
+            if (client.sending_callback)
+                client.sending_callback(result);
+            closeSession(client);
             return result;
         }
+
+        result.file_name = client.image.file.name;
+        client.internal.upload_len = sz;
+        setMultipartHeader(multipath, boundary, esp_line_notify_multipart_header_type_undefined, client.image.file.name.c_str());
+        contentLength = textPayload.length() + multipath.length() + sz + boundary.length() + 6;
     }
 
     if (client.image.data.blob && client.image.data.size > 0)
     {
         result.file_name = client.image.data.file_name;
-        client._int.upload_len = client.image.data.size;
+        client.internal.upload_len = client.image.data.size;
         setMultipartHeader(multipath, boundary, esp_line_notify_multipart_header_type_undefined, client.image.data.file_name.c_str());
         contentLength = textPayload.length() + multipath.length() + client.image.data.size + boundary.length() + 6;
     }
@@ -271,57 +221,61 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotifyClient &client)
     {
         setHeader(client, header, boundary, contentLength);
 
-        ret = client.httpClient->send(header.c_str(), textPayload.c_str());
-        MBSTRING().swap(textPayload);
-        MBSTRING().swap(header);
-        if (ret < 0)
-        {
-            ut->appendP(result.error.message, esp_line_notify_str_56, true);
-            if (client.sendingg_callback)
-                client.sendingg_callback(result);
-            return result;
-        }
+        ret = client.tcpClient->send(header.c_str());
 
-        ret = client.httpClient->send("", multipath.c_str());
-        MBSTRING().swap(multipath);
+        if (ret >= 0)
+            ret = client.tcpClient->send(textPayload.c_str());
+
+        if (ret >= 0)
+            ret = client.tcpClient->send(multipath.c_str());
+
+        header.clear();
+        textPayload.clear();
+        multipath.clear();
+
         if (ret < 0)
         {
-            ut->appendP(result.error.message, esp_line_notify_str_56, true);
-            if (client.sendingg_callback)
-                client.sendingg_callback(result);
+            result.status = LineNotify_Sending_Error;
+            result.error.code = responseCode;
+            result.error.message.clear();
+            errorToString(result.error.code, result.error.message);
+            if (client.sending_callback)
+                client.sending_callback(result);
+            closeSession(client);
             return result;
         }
 
         size_t byteRead = 0;
         result.status = LineNotify_Sending_Upload;
 
-        if (client._int.esp_line_notify_file && client.image.file.path.length() > 0)
+        if (sz && client.image.file.path.length() > 0)
         {
-            int available = client._int.esp_line_notify_file.available();
+            int available = mbfs->available(mbfs_type client.image.file.storage_type);
             int bufLen = 1024;
-            uint8_t *buf = (uint8_t *)ut->newP(bufLen + 1);
-            size_t read = 0;
+            uint8_t *buf = (uint8_t *)mbfs->newP(bufLen + 1);
+            int read = 0;
+            client.internal.progress = -1;
             while (available)
             {
                 delay(0);
                 if (available > bufLen)
                     available = bufLen;
                 byteRead += available;
-                read = client._int.esp_line_notify_file.read(buf, available);
-                if (client.httpClient->stream()->write(buf, read) != read)
+                read = mbfs->read(mbfs_type client.image.file.storage_type, buf, available);
+                if (client.tcpClient->write(buf, read) != read)
                     break;
-                reportUpploadProgress(client, client._int.upload_len, byteRead);
-                available = client._int.esp_line_notify_file.available();
+                reportUpploadProgress(client, client.internal.upload_len, byteRead);
+                available = mbfs->available(mbfs_type client.image.file.storage_type);
             }
-            ut->delP(&buf);
-            client._int.esp_line_notify_file.close();
+            mbfs->delP(&buf);
+            mbfs->close(mbfs_type client.image.file.storage_type);
         }
         else if (client.image.data.size > 0)
         {
             int len = client.image.data.size;
             int available = len;
             int bufLen = 1024;
-            uint8_t *buf = (uint8_t *)ut->newP(bufLen + 1);
+            uint8_t *buf = (uint8_t *)mbfs->newP(bufLen + 1);
             size_t pos = 0;
             while (available)
             {
@@ -331,74 +285,84 @@ LineNotifySendingResult ESP_Line_Notify::send(LineNotifyClient &client)
                 byteRead += available;
                 memcpy_P(buf, client.image.data.blob + pos, available);
 
-                if (client.httpClient->stream()->write(buf, available) != (size_t)available)
+                if (client.tcpClient->write(buf, available) != available)
                     break;
-                reportUpploadProgress(client, client._int.upload_len, byteRead);
+
+                reportUpploadProgress(client, client.internal.upload_len, byteRead);
                 pos += available;
                 len -= available;
                 available = len;
             }
-            ut->delP(&buf);
+            mbfs->delP(&buf);
         }
 
         textPayload.clear();
 
-        ut->appendP(textPayload, esp_line_notify_str_4);
+        textPayload += esp_line_notify_str_4;
 
         setMultipartBoundary(textPayload, boundary);
 
-        ret = client.httpClient->send("", textPayload.c_str());
-        MBSTRING().swap(textPayload);
+       
+        ret = client.tcpClient->send(textPayload.c_str());
+        textPayload.clear();
         if (ret < 0)
         {
-            ut->appendP(result.error.message, esp_line_notify_str_56, true);
-            if (client.sendingg_callback)
-                client.sendingg_callback(result);
+            result.status = LineNotify_Sending_Error;
+            result.error.code = responseCode;
+            result.error.message.clear();
+            errorToString(result.error.code, result.error.message);
+            if (client.sending_callback)
+                client.sending_callback(result);
+            closeSession(client);
             return result;
         }
-
-        ret = 0;
     }
     else
     {
+        
         setMultipartBoundary(textPayload, boundary);
 
         contentLength = textPayload.length();
 
         setHeader(client, header, boundary, contentLength);
 
-        ret = client.httpClient->send(header.c_str(), textPayload.c_str());
-        MBSTRING().swap(textPayload);
-        MBSTRING().swap(header);
+        ret = client.tcpClient->send(header.c_str());
+        if (ret >= 0)
+            ret = client.tcpClient->send(textPayload.c_str());
+        textPayload.clear();
+        header.clear();
     }
 
-    if (ret == 0)
+    if (ret >= 0)
     {
         result.status = LineNotify_Sending_Success;
-        client._int.http_connected = true;
-        if (!handleResponse(client))
+        if (!handleResponse(client, result.error.code))
+        {
             result.status = LineNotify_Sending_Error;
+            errorToString(result.error.code, result.error.message);
+        }
     }
     else
+    {
         result.status = LineNotify_Sending_Error;
+        result.error.code = responseCode;
+        result.error.message.clear();
+        errorToString(result.error.code, result.error.message);
+    }
 
     closeSession(client);
 
-    if (client.sendingg_callback)
-        client.sendingg_callback(result);
+    if (client.sending_callback)
+        client.sending_callback(result);
 
-    delete client.httpClient;
-    client.httpClient = nullptr;
     return result;
 }
 
-bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
+bool ESP_Line_Notify::handleResponse(LineNotifyClient &client, int &responseCode)
 {
 
     if (!reconnect(client, 0))
         return false;
-
-    WiFiClient *stream = client.httpClient->stream();
 
     unsigned long dataTime = millis();
 
@@ -413,7 +377,7 @@ bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
     int pChunkIdx = 0;
     int payloadLen = client.response_size;
     int hBufPos = 0;
-    int chunkBufSize = stream->available();
+    int chunkBufSize = client.tcpClient->available();
     int hstate = 0;
     int chunkedDataState = 0;
     int chunkedDataSize = 0;
@@ -422,21 +386,19 @@ bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
 
     int payloadRead = 0;
 
-    client._int.http_code = LINENOTIFY_ERROR_HTTP_CODE_OK;
-
-    while (client.httpClient->connected() && chunkBufSize <= 0)
+    while (client.tcpClient->connected() && chunkBufSize <= 0)
     {
-        if (!reconnect(client, dataTime) || stream == nullptr)
+        if (!reconnect(client, dataTime))
         {
-            client._int.http_code = LINENOTIFY_ERROR_HTTPC_ERROR_NOT_CONNECTED;
+            responseCode = ESP_LINE_NOTIFY_ERROR_TCP_ERROR_NOT_CONNECTED;
             return false;
         }
-        chunkBufSize = stream->available();
+        chunkBufSize = client.tcpClient->available();
         delay(0);
     }
 
     int availablePayload = chunkBufSize;
-    MBSTRING payload = "";
+    MB_String payload;
 
     dataTime = millis();
 
@@ -447,7 +409,7 @@ bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
             if (!reconnect(client, dataTime))
                 return false;
 
-            chunkBufSize = stream->available();
+            chunkBufSize = client.tcpClient->available();
 
             if (chunkBufSize <= 0 && availablePayload <= 0 && payloadRead >= response.contentLen && response.contentLen > 0)
                 break;
@@ -458,10 +420,10 @@ bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
 
                 if (chunkIdx == 0)
                 {
-                    //the first chunk can be http response header
-                    header = (char *)ut->newP(chunkBufSize);
+                    // the first chunk can be http response header
+                    header = (char *)mbfs->newP(chunkBufSize);
                     hstate = 1;
-                    int readLen = ut->readLine(stream, header, chunkBufSize);
+                    int readLen = client.tcpClient->readLine(header, chunkBufSize);
                     int pos = 0;
 
                     tmp = ut->getHeader(header, esp_line_notify_str_36, esp_line_notify_str_2, pos, 0);
@@ -469,27 +431,27 @@ bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
                     dataTime = millis();
                     if (tmp)
                     {
-                        //http response header with http response code
+                        // http response header with http response code
                         isHeader = true;
                         hBufPos = readLen;
                         response.httpCode = atoi(tmp);
-                        client._int.http_code = response.httpCode;
-                        ut->delP(&tmp);
+                        responseCode = response.httpCode;
+                        mbfs->delP(&tmp);
                     }
                 }
                 else
                 {
                     delay(0);
                     dataTime = millis();
-                    //the next chunk data can be the remaining http header
+                    // the next chunk data can be the remaining http header
                     if (isHeader)
                     {
-                        //read one line of next header field until the empty header has found
-                        tmp = (char *)ut->newP(chunkBufSize);
-                        int readLen = ut->readLine(stream, tmp, chunkBufSize);
+                        // read one line of next header field until the empty header has found
+                        tmp = (char *)mbfs->newP(chunkBufSize);
+                        int readLen = client.tcpClient->readLine(tmp, chunkBufSize);
                         bool headerEnded = false;
 
-                        //check is it the end of http header (\n or \r\n)?
+                        // check is it the end of http header (\n or \r\n)?
                         if (readLen == 1)
                             if (tmp[0] == '\r')
                                 headerEnded = true;
@@ -500,53 +462,53 @@ bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
 
                         if (headerEnded)
                         {
-                            //parse header string to get the header field
+                            // parse header string to get the header field
                             isHeader = false;
                             ut->parseRespHeader(header, response);
 
-                            if (response.httpCode == LINENOTIFY_ERROR_HTTP_CODE_OK)
+                            if (response.httpCode == ESP_LINE_NOTIFY_ERROR_HTTP_CODE_OK)
                                 result.status = LineNotify_Sending_Success;
 
                             result.quota = response.quota;
 
-                            if (response.httpCode == LINENOTIFY_ERROR_HTTP_CODE_NO_CONTENT)
+                            if (response.httpCode == ESP_LINE_NOTIFY_ERROR_HTTP_CODE_NO_CONTENT)
                                 result.error.code = 0;
 
                             if (hstate == 1)
-                                ut->delP(&header);
+                                mbfs->delP(&header);
                             hstate = 0;
 
                             if (response.contentLen == 0)
                             {
-                                ut->delP(&tmp);
+                                mbfs->delP(&tmp);
                                 break;
                             }
                         }
                         else
                         {
-                            //accumulate the remaining header field
+                            // accumulate the remaining header field
                             memcpy(header + hBufPos, tmp, readLen);
                             hBufPos += readLen;
                         }
-                        ut->delP(&tmp);
+                        mbfs->delP(&tmp);
                     }
                     else
                     {
-                        //the next chuunk data is the payload
+                        // the next chuunk data is the payload
                         if (!response.noContent)
                         {
 
                             pChunkIdx++;
-                            pChunk = (char *)ut->newP(chunkBufSize + 1);
+                            pChunk = (char *)mbfs->newP(chunkBufSize + 1);
 
                             if (response.isChunkedEnc)
                                 delay(10);
-                            //read the avilable data
-                            //chunk transfer encoding?
+                            // read the avilable data
+                            // chunk transfer encoding?
                             if (response.isChunkedEnc)
-                                availablePayload = ut->readChunkedData(stream, pChunk, chunkedDataState, chunkedDataSize, chunkedDataLen, chunkBufSize);
+                                availablePayload = client.tcpClient->readChunkedData(pChunk, chunkedDataState, chunkedDataSize, chunkedDataLen, chunkBufSize);
                             else
-                                availablePayload = ut->readLine(stream, pChunk, chunkBufSize);
+                                availablePayload = client.tcpClient->readLine(pChunk, chunkBufSize);
 
                             if (availablePayload > 0)
                             {
@@ -556,20 +518,18 @@ bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
                                     payload += pChunk;
                             }
 
-                            ut->delP(&pChunk);
+                            mbfs->delP(&pChunk);
 
                             if (availablePayload < 0 || (payloadRead >= response.contentLen && !response.isChunkedEnc))
                             {
-                                while (stream->available() > 0)
-                                    stream->read();
+                                client.tcpClient->flush();
                                 break;
                             }
                         }
                         else
                         {
-                            //read all the rest data
-                            while (stream->available() > 0)
-                                stream->read();
+                            // read all the rest data
+                            client.tcpClient->flush();
                         }
                     }
                 }
@@ -579,9 +539,9 @@ bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
         }
 
         if (hstate == 1)
-            ut->delP(&header);
+            mbfs->delP(&header);
 
-        //parse the payload
+        // parse the payload
         if (payload.length() > 0)
         {
             FirebaseJson js;
@@ -589,43 +549,54 @@ bool ESP_Line_Notify::handleResponse(LineNotifyClient &client)
             js.setJsonData(payload.c_str());
             char *tmp = ut->strP(esp_line_notify_str_45);
             js.get(data, (const char *)tmp);
-            ut->delP(&tmp);
+            mbfs->delP(&tmp);
             if (data.success)
                 result.error.code = data.intValue;
 
             tmp = ut->strP(esp_line_notify_str_19);
             js.get(data, (const char *)tmp);
-            ut->delP(&tmp);
+            mbfs->delP(&tmp);
             if (data.success)
                 result.error.message = data.stringValue.c_str();
         }
 
-        return result.error.code == LINENOTIFY_ERROR_HTTP_CODE_OK;
+        return result.error.code == ESP_LINE_NOTIFY_ERROR_HTTP_CODE_OK;
     }
     else
     {
 
-        while (stream->available() > 0)
-            stream->read();
+        client.tcpClient->flush();
     }
 
-    return client._int.http_code == LINENOTIFY_ERROR_HTTP_CODE_OK;
+    return responseCode == ESP_LINE_NOTIFY_ERROR_HTTP_CODE_OK;
 }
 
 bool ESP_Line_Notify::reconnect(LineNotifyClient &client, unsigned long dataTime)
 {
 
-    bool status = WiFi.status() == WL_CONNECTED;
+    if (client.tcpClient->type() == esp_line_notify_tcp_client_type_external)
+    {
+#if !defined(ESP_LINE_NOTIFY_ENABLE_EXTERNAL_CLIENT)
+        client.response.code = ESP_LINE_NOTIFY_ERROR_EXTERNAL_CLIENT_DISABLED;
+        return false;
+#endif
+        if (!client.tcpClient->isInitialized())
+        {
+            client.response.code = ESP_LINE_NOTIFY_ERROR_EXTERNAL_CLIENT_NOT_INITIALIZED;
+            return false;
+        }
+    }
+
+    bool status = client.tcpClient->networkReady();
 
     if (dataTime > 0)
     {
-        if (millis() - dataTime > client.httpClient->timeout)
+        unsigned long tmo = 10 * 1000;
+
+        if (millis() - dataTime > tmo)
         {
-            client._int.http_code = LINENOTIFY_ERROR_HTTPC_ERROR_READ_TIMEOUT;
-            char *tmp = ut->strP(esp_line_notify_str_44);
-            result.error.message = tmp;
-            result.error.code = client._int.http_code;
-            ut->delP(&tmp);
+            client.response.code = ESP_LINE_NOTIFY_ERROR_TCP_RESPONSE_PAYLOAD_READ_TIMED_OUT;
+
             closeSession(client);
             return false;
         }
@@ -633,21 +604,21 @@ bool ESP_Line_Notify::reconnect(LineNotifyClient &client, unsigned long dataTime
 
     if (!status)
     {
-        if (client._int.http_connected)
-            closeSession(client);
+        closeSession(client);
 
-        client._int.http_code = LINENOTIFY_ERROR_HTTPC_ERROR_CONNECTION_LOST;
+        client.response.code = ESP_LINE_NOTIFY_ERROR_TCP_ERROR_CONNECTION_LOST;
 
-        if (client.reconnect_wifi)
+        if (client.reconnect_wifi &&  millis() - client.internal.esp_line_notify_last_reconnect_millis > 10 * 1000)
         {
-            if (millis() - client._int.esp_line_notify_last_reconnect_millis > client._int.esp_line_notify_reconnect_tmo && !client._int.http_connected)
-            {
-                WiFi.reconnect();
-                client._int.esp_line_notify_last_reconnect_millis = millis();
-            }
+#if defined(ESP32) || defined(ESP8266)
+            WiFi.reconnect();
+#else
+            client.tcpClient->networkReconnect();
+#endif
+            client.internal.esp_line_notify_last_reconnect_millis = millis();
         }
 
-        status = WiFi.status() == WL_CONNECTED;
+        status = client.tcpClient->networkReady();
     }
 
     return status;
@@ -655,163 +626,321 @@ bool ESP_Line_Notify::reconnect(LineNotifyClient &client, unsigned long dataTime
 
 void ESP_Line_Notify::closeSession(LineNotifyClient &client)
 {
-    if (WiFi.status() == WL_CONNECTED)
+
+    bool status = client.tcpClient->networkReady();
+
+    if (status)
     {
-        //close the socket and free the resources used by the BearSSL data
-        if (client._int.http_connected || client.httpClient->stream())
+        // close the socket and free the resources used by the BearSSL data
+        if (client.tcpClient->connected())
         {
-            client._int.esp_line_notify_last_reconnect_millis = millis();
-            if (client.httpClient->stream())
-                if (client.httpClient->stream()->connected())
-                    client.httpClient->stream()->stop();
+
+            client.internal.esp_line_notify_last_reconnect_millis = millis();
+
+            if (client.tcpClient->connected())
+                client.tcpClient->stop();
         }
     }
-
-    client._int.http_connected = false;
+    if (client.tcpClient)
+        delete client.tcpClient;
+    client.tcpClient = nullptr;
 }
 
-void ESP_Line_Notify::setHeader(LineNotifyClient &client, MBSTRING &buf, MBSTRING &boundary, size_t contentLength)
+void ESP_Line_Notify::setHeader(LineNotifyClient &client, MB_String &buf, MB_String &boundary, size_t contentLength)
 {
-    ut->appendP(buf, esp_line_notify_str_5);
-    ut->appendP(buf, esp_line_notify_str_4);
+    buf += esp_line_notify_str_5;
+    buf += esp_line_notify_str_4;
 
-    ut->appendP(buf, esp_line_notify_str_6);
-    ut->appendP(buf, esp_line_notify_str_4);
+    buf += esp_line_notify_str_6;
+    buf += esp_line_notify_str_4;
 
-    ut->appendP(buf, esp_line_notify_str_7);
+    buf += esp_line_notify_str_7;
     buf += client.token;
-    ut->appendP(buf, esp_line_notify_str_4);
+    buf += esp_line_notify_str_4;
 
-    ut->appendP(buf, esp_line_notify_str_8);
+    buf += esp_line_notify_str_8;
     buf += boundary;
-    ut->appendP(buf, esp_line_notify_str_4);
+    buf += esp_line_notify_str_4;
 
-    ut->appendP(buf, esp_line_notify_str_9);
-    ut->appendP(buf, esp_line_notify_str_3);
-    ut->appendP(buf, esp_line_notify_str_4);
+    buf += esp_line_notify_str_9;
+    buf += esp_line_notify_str_3;
+    buf += esp_line_notify_str_4;
 
-    ut->appendP(buf, esp_line_notify_str_10);
-    ut->appendP(buf, esp_line_notify_str_4);
+    buf += esp_line_notify_str_10;
+    buf += esp_line_notify_str_4;
 
-    ut->appendP(buf, esp_line_notify_str_11);
-    ut->appendP(buf, esp_line_notify_str_1);
-    ut->appendP(buf, esp_line_notify_str_4);
+    buf += esp_line_notify_str_11;
+    buf += esp_line_notify_str_1;
+    buf += esp_line_notify_str_4;
 
-    ut->appendP(buf, esp_line_notify_str_12);
-    ut->appendP(buf, esp_line_notify_str_4);
+    buf += esp_line_notify_str_12;
+    buf += esp_line_notify_str_4;
 
-    ut->appendP(buf, esp_line_notify_str_13);
-    ut->appendP(buf, esp_line_notify_str_4);
+    buf += esp_line_notify_str_13;
+    buf += esp_line_notify_str_4;
 
-    ut->appendP(buf, esp_line_notify_str_14);
-    char *tmp = ut->intStr(contentLength);
-    buf += tmp;
-    ut->delP(&tmp);
-    ut->appendP(buf, esp_line_notify_str_4);
-    ut->appendP(buf, esp_line_notify_str_4);
+    buf += esp_line_notify_str_14;
+    buf += contentLength;
+    buf += esp_line_notify_str_4;
+    buf += esp_line_notify_str_4;
 }
 
-void ESP_Line_Notify::setMultipartHeader(MBSTRING &buf, MBSTRING &boundary, esp_line_notify_multipart_header_type type, const char *imgFile)
+void ESP_Line_Notify::setMultipartHeader(MB_String &buf, MB_String &boundary, esp_line_notify_multipart_header_type type, const char *imgFile)
 {
-    ut->appendP(buf, esp_line_notify_str_24);
+    buf += esp_line_notify_str_24;
     buf += boundary;
-    ut->appendP(buf, esp_line_notify_str_4);
+    buf += esp_line_notify_str_4;
 
     if (type == esp_line_notify_multipart_header_type_notification_disabled || type == esp_line_notify_multipart_header_type_message || type == esp_line_notify_multipart_header_type_sticker_id || type == esp_line_notify_multipart_header_type_sticker_package_id || type == esp_line_notify_multipart_header_type_image_thumbnail || type == esp_line_notify_multipart_header_type_image_full_size)
     {
-        ut->appendP(buf, esp_line_notify_str_18);
+        buf += esp_line_notify_str_18;
         if (type == esp_line_notify_multipart_header_type_message)
-            ut->appendP(buf, esp_line_notify_str_19);
+            buf += esp_line_notify_str_19;
         else if (type == esp_line_notify_multipart_header_type_sticker_id)
-            ut->appendP(buf, esp_line_notify_str_21);
+            buf += esp_line_notify_str_21;
         else if (type == esp_line_notify_multipart_header_type_sticker_package_id)
-            ut->appendP(buf, esp_line_notify_str_20);
+            buf += esp_line_notify_str_20;
         else if (type == esp_line_notify_multipart_header_type_image_thumbnail)
-            ut->appendP(buf, esp_line_notify_str_22);
+            buf += esp_line_notify_str_22;
         else if (type == esp_line_notify_multipart_header_type_image_full_size)
-            ut->appendP(buf, esp_line_notify_str_23);
+            buf += esp_line_notify_str_23;
         else if (type == esp_line_notify_multipart_header_type_notification_disabled)
-            ut->appendP(buf, esp_line_notify_str_57);
+            buf += esp_line_notify_str_57;
 
-        ut->appendP(buf, esp_line_notify_str_25);
-        ut->appendP(buf, esp_line_notify_str_4);
-        ut->appendP(buf, esp_line_notify_str_4);
+        buf += esp_line_notify_str_25;
+        buf += esp_line_notify_str_4;
+        buf += esp_line_notify_str_4;
     }
     else
     {
-        ut->appendP(buf, esp_line_notify_str_16);
+        buf += esp_line_notify_str_16;
         buf += imgFile;
-        ut->appendP(buf, esp_line_notify_str_25);
-        ut->appendP(buf, esp_line_notify_str_4);
-        ut->appendP(buf, esp_line_notify_str_17);
+        buf += esp_line_notify_str_25;
+        buf += esp_line_notify_str_4;
+        buf += esp_line_notify_str_17;
         getContentType(imgFile, buf);
 
-        ut->appendP(buf, esp_line_notify_str_4);
-        ut->appendP(buf, esp_line_notify_str_4);
+        buf += esp_line_notify_str_4;
+        buf += esp_line_notify_str_4;
     }
 }
 
-void ESP_Line_Notify::getContentType(const MBSTRING &filename, MBSTRING &buf)
+void ESP_Line_Notify::getContentType(const MB_String &filename, MB_String &buf)
 {
-    char *tmp = ut->strP(esp_line_notify_str_35);
-    size_t p1 = filename.find_last_of(tmp);
-    ut->delP(&tmp);
-    if (p1 != MBSTRING::npos)
+    size_t p1 = filename.find_last_of(pgm2Str(esp_line_notify_str_35));
+    if (p1 != MB_String::npos)
     {
-        tmp = ut->strP(esp_line_notify_str_26);
-        char *tmp2 = ut->strP(esp_line_notify_str_27);
-        char *tmp3 = ut->strP(esp_line_notify_str_29);
-        char *tmp4 = ut->strP(esp_line_notify_str_31);
-        char *tmp5 = ut->strP(esp_line_notify_str_33);
-
-        if (filename.find(tmp, p1) != MBSTRING::npos || filename.find(tmp2, p1) != MBSTRING::npos)
-            ut->appendP(buf, esp_line_notify_str_28);
-        else if (filename.find(tmp3, p1) != MBSTRING::npos)
-            ut->appendP(buf, esp_line_notify_str_30);
-        else if (filename.find(tmp4, p1) != MBSTRING::npos)
-            ut->appendP(buf, esp_line_notify_str_32);
-        else if (filename.find(tmp5, p1) != MBSTRING::npos)
-            ut->appendP(buf, esp_line_notify_str_34);
-
-        ut->delP(&tmp);
-        ut->delP(&tmp2);
-        ut->delP(&tmp3);
-        ut->delP(&tmp4);
-        ut->delP(&tmp5);
+        if (filename.find(pgm2Str(esp_line_notify_str_26), p1) != MB_String::npos || filename.find(pgm2Str(esp_line_notify_str_27), p1) != MB_String::npos)
+            buf += esp_line_notify_str_28;
+        else if (filename.find(pgm2Str(esp_line_notify_str_29), p1) != MB_String::npos)
+            buf += esp_line_notify_str_30;
+        else if (filename.find(pgm2Str(esp_line_notify_str_31), p1) != MB_String::npos)
+            buf += esp_line_notify_str_32;
+        else if (filename.find(pgm2Str(esp_line_notify_str_33), p1) != MB_String::npos)
+            buf += esp_line_notify_str_34;
     }
 }
 
-void ESP_Line_Notify::setMultipartBoundary(MBSTRING &buf, MBSTRING &boundary)
+void ESP_Line_Notify::setMultipartBoundary(MB_String &buf, MB_String &boundary)
 {
-    ut->appendP(buf, esp_line_notify_str_24);
+    buf += esp_line_notify_str_24;
     buf += boundary;
-    ut->appendP(buf, esp_line_notify_str_24);
-    ut->appendP(buf, esp_line_notify_str_4);
+    buf += esp_line_notify_str_24;
+    buf += esp_line_notify_str_4;
 }
 
 void ESP_Line_Notify::reportUpploadProgress(LineNotifyClient &client, size_t total, size_t read)
 {
 
-    if (!client.sendingg_callback)
+    if (!client.sending_callback)
         return;
 
     int p = 100 * read / total;
 
-    if ((p % 2 == 0) && (p <= 100))
+    if (client.internal.progress != p && (p == 0 || p == 100 || client.internal.progress + 2 <= p))
     {
-        if (client._int.report_state == 0 || (p == 0 && client._int.report_state == -1))
-        {
-            result.progress = p;
-            client.sendingg_callback(result);
-
-            if (p == 0 && client._int.report_state == -1)
-                client._int.report_state = 1;
-            else if (client._int.report_state == 0)
-                client._int.report_state = -1;
-        }
+        client.internal.progress = p;
+        result.progress = p;
+        client.sending_callback(result);
     }
-    else
-        client._int.report_state = 0;
+}
+
+#if defined(MBFS_SD_FS) && defined(MBFS_CARD_TYPE_SD)
+
+bool ESP_Line_Notify::sdBegin(int8_t ss, int8_t sck, int8_t miso, int8_t mosi)
+{
+    return mbfs->sdBegin(ss, sck, miso, mosi);
+}
+
+#if defined(ESP8266)
+bool ESP_Line_Notify::sdBegin(SDFSConfig *sdFSConfig)
+{
+    return mbfs->sdFatBegin(sdFSConfig);
+}
+#endif
+
+#if defined(ESP32)
+
+bool ESP_Line_Notify::sdBegin(int8_t ss, SPIClass *spiConfig)
+{
+    return mbfs->sdSPIBegin(ss, spiConfig);
+}
+#endif
+
+#if defined(MBFS_ESP32_SDFAT_ENABLED) || defined(MBFS_SDFAT_ENABLED)
+bool ESP_Line_Notify::sdBegin(SdSpiConfig *sdFatSPIConfig, int8_t ss, int8_t sck, int8_t miso, int8_t mosi)
+{
+    return mbfs->sdFatBegin(sdFatSPIConfig, ss, sck, miso, mosi);
+}
+#endif
+
+#endif
+
+#if defined(ESP8266) && defined(MBFS_SD_FS) && defined(MBFS_CARD_TYPE_SD_MMC)
+
+bool ESP_Line_Notify::sdMMCBegin(const char *mountpoint, bool mode1bit, bool format_if_mount_failed)
+{
+
+    return mbfs->sdMMCBegin(mountpoint, mode1bit, format_if_mount_failed);
+}
+
+#endif
+
+void ESP_Line_Notify::errorToString(int httpCode, MB_String &buff)
+{
+    buff.clear();
+
+    switch (httpCode)
+    {
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_UNDEFINED:
+        buff += esp_line_notify_str_106;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_TCP_ERROR_CONNECTION_REFUSED:
+        buff += esp_line_notify_str_73;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_TCP_ERROR_SEND_REQUEST_FAILED:
+        buff += esp_line_notify_str_74;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_TCP_ERROR_NOT_CONNECTED:
+        buff += esp_line_notify_str_75;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_TCP_ERROR_CONNECTION_LOST:
+        buff += esp_line_notify_str_76;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_TCP_ERROR_NO_HTTP_SERVER:
+        buff += esp_line_notify_str_77;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_BAD_REQUEST:
+        buff += esp_line_notify_str_78;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_NON_AUTHORITATIVE_INFORMATION:
+        buff += esp_line_notify_str_79;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_NO_CONTENT:
+        buff += esp_line_notify_str_80;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_MOVED_PERMANENTLY:
+        buff += esp_line_notify_str_81;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_USE_PROXY:
+        buff += esp_line_notify_str_82;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_TEMPORARY_REDIRECT:
+        buff += esp_line_notify_str_83;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_PERMANENT_REDIRECT:
+        buff += esp_line_notify_str_84;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_UNAUTHORIZED:
+        buff += esp_line_notify_str_85;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_FORBIDDEN:
+        buff += esp_line_notify_str_86;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_NOT_FOUND:
+        buff += esp_line_notify_str_87;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_METHOD_NOT_ALLOWED:
+        buff += esp_line_notify_str_88;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_NOT_ACCEPTABLE:
+        buff += esp_line_notify_str_89;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_PROXY_AUTHENTICATION_REQUIRED:
+        buff += esp_line_notify_str_90;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_REQUEST_TIMEOUT:
+        buff += esp_line_notify_str_91;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_LENGTH_REQUIRED:
+        buff += esp_line_notify_str_92;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_TOO_MANY_REQUESTS:
+        buff += esp_line_notify_str_93;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_REQUEST_HEADER_FIELDS_TOO_LARGE:
+        buff += esp_line_notify_str_94;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_INTERNAL_SERVER_ERROR:
+        buff += esp_line_notify_str_95;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_BAD_GATEWAY:
+        buff += esp_line_notify_str_96;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_SERVICE_UNAVAILABLE:
+        buff += esp_line_notify_str_97;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_GATEWAY_TIMEOUT:
+        buff += esp_line_notify_str_98;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_HTTP_VERSION_NOT_SUPPORTED:
+        buff += esp_line_notify_str_99;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_NETWORK_AUTHENTICATION_REQUIRED:
+        buff += esp_line_notify_str_100;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_HTTP_CODE_PRECONDITION_FAILED:
+        buff += esp_line_notify_str_101;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_TCP_RESPONSE_PAYLOAD_READ_TIMED_OUT:
+        buff += esp_line_notify_str_102;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_TCP_RESPONSE_READ_FAILED:
+        buff += esp_line_notify_str_103;
+        return;
+    case MB_FS_ERROR_FILE_IO_ERROR:
+        buff += esp_line_notify_str_55;
+        return;
+
+#if defined(MBFS_FLASH_FS) || defined(MBFS_SD_FS)
+
+    case MB_FS_ERROR_FLASH_STORAGE_IS_NOT_READY:
+        buff += esp_line_notify_str_69;
+        return;
+
+    case MB_FS_ERROR_SD_STORAGE_IS_NOT_READY:
+        buff += esp_line_notify_str_70;
+        return;
+
+    case MB_FS_ERROR_FILE_STILL_OPENED:
+        buff += esp_line_notify_str_71;
+        return;
+
+    case MB_FS_ERROR_FILE_NOT_FOUND:
+        buff += esp_line_notify_str_72;
+        return;
+#endif
+
+    case ESP_LINE_NOTIFY_ERROR_EXTERNAL_CLIENT_DISABLED:
+        buff += esp_line_notify_str_104;
+        return;
+    case ESP_LINE_NOTIFY_ERROR_EXTERNAL_CLIENT_NOT_INITIALIZED:
+        buff += esp_line_notify_str_105;
+        return;
+
+    default:
+        return;
+    }
 }
 
 ESP_Line_Notify LineNotify = ESP_Line_Notify();

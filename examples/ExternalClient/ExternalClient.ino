@@ -1,3 +1,4 @@
+
 /**
  * Created by K. Suwatchai (Mobizt)
  *
@@ -10,27 +11,24 @@
  */
 
 /**
- * This example showed how to send the location and google map image message via the Line Notify agent.
- * The callback function and sending result can be assigned
- * 
-*/
+ * This example showed how to send the notified message via the Line Notify agent
+ * with external Client.
+ * This example used SAMD21 device and WiFiNINA as the client.
+ *
+ */
 
-#if defined(ESP32)
-#include <WiFi.h>
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
+#if defined(ARDUINO_ARCH_SAMD)
+#include <WiFiNINA.h>
 #endif
-#include <ESP_Line_Notify.h>
 
-//Demo image data
-#include "image.h"
+#include <ESP_Line_Notify.h>
 
 /* Set your WiFI AP credential */
 #define WIFI_SSID "WIFI_AP"
 #define WIFI_PASSWORD "WIFI_PASSWORD"
 
 /* Define the LineNotifyClient object */
-LineNotifyClient client;
+LineNotifyClient line;
 
 /* Function to print the sending result via Serial (optional) */
 void printRessult(LineNotifySendingResult result);
@@ -38,70 +36,85 @@ void printRessult(LineNotifySendingResult result);
 /* The sending callback function (optional) */
 void sendingCallback(LineNotifySendingResult result);
 
+WiFiSSLClient client;
+
+void networkConnection()
+{
+    // Reset the network connection
+    WiFi.disconnect();
+
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    Serial.print("Connecting to Wi-Fi");
+    unsigned long ms = millis();
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        Serial.print(".");
+        delay(300);
+        if (millis() - ms >= 5000)
+        {
+            Serial.println(" failed!");
+            return;
+        }
+    }
+    Serial.println();
+    Serial_Printf("Connected with IP: ");
+    Serial.println(WiFi.localIP());
+    Serial.println();
+}
+
+// Define the callback function to handle server status acknowledgement
+void networkStatusRequestCallback()
+{
+    // Set the network status
+    line.setNetworkStatus(WiFi.status() == WL_CONNECTED);
+}
+
+// Define the callback function to handle server connection
+void tcpConnectionRequestCallback(const char *host, int port)
+{
+    Serial.print("Connecting to server via external Client... ");
+    if (!client.connect(host, port))
+    {
+        Serial.println("failed.");
+        return;
+    }
+    Serial.println("success.");
+}
+
 void setup()
 {
 
     Serial.begin(115200);
 
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        Serial.print(".");
-        delay(200);
-    }
-    Serial.println("");
-    Serial.println("WiFi connected.");
-    Serial.println("IP address: ");
-    Serial.println(WiFi.localIP());
+#if defined(ARDUINO_ARCH_SAMD)
+    while (!Serial)
+        ;
+#endif
 
-    client.reconnect_wifi = true;
+    networkConnection();
+
+    /* line.setExternalClient and line.setExternalClientCallbacks must be called before Firebase.begin */
+
+    /* Assign the pointer to global defined WiFiClient object */
+    line.setExternalClient(&client);
+
+    /* Assign the required callback functions */
+    line.setExternalClientCallbacks(tcpConnectionRequestCallback, networkConnection, networkStatusRequestCallback);
 
     Serial.println("Sending Line Notify message...");
 
-    client.token = "Your Line Notify Access Token";
-    client.message = "Hello world";
+    line.token = "Your Line Notify Access Token";
+    line.message = "Hello world";
 
-    /** To send message without user notification
-     * 
-     client.notification_disabled = true;
+    LineNotifySendingResult result = LineNotify.send(line);
 
-    */
-
-    client.message = "Location";
-
-    client.gmap.zoom = 18;
-    client.gmap.map_type = "satellite";          //roadmap or satellite
-    client.gmap.center = "40.718217,-73.998284"; //Places or Latitude, Longitude
-
-    /** To send the map image, Google Map Static API must be enable
-     * 
-     * To enable Map Static API
-     * https://console.cloud.google.com/apis/library/static-maps-backend.googleapis.com
-     * 
-     * To create the API key
-     * https://developers.google.com/maps/documentation/javascript/get-api-key
-     
-
-     client.gmap.google_api_key = "Your API Key";
-     client.gmap.size = "640x6400";//size of map image in pixels (widthxheight), 640x640 is maximum
-     client.gmap.markers = "color:green|label:P|40.718217,-73.998284"; //the marker in static map image: color, label, //Latitude, Longitude
-
-    */
-
-    /** To assiggn the callback function
-     * 
-     client.sending_callback = sendingCallback;
-
-    */
-
-    LineNotifySendingResult result = LineNotify.send(client);
-
-    //Print the sending result
+    // Print the sending result
     printRessult(result);
 }
 
 void loop()
 {
+
 }
 
 /* Function to print the sending result via Serial */

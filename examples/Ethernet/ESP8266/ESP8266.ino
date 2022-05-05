@@ -1,36 +1,43 @@
+
 /**
  * Created by K. Suwatchai (Mobizt)
  *
  * Email: k_suwatchai@hotmail.com
  *
- * Github: https://github.com/ESP-Line-Notify
+ * Github: https://github.com/mobizt/Firebase-ESP-Client
  *
  * Copyright (c) 2022 mobizt
  *
  */
 
 /**
- * This example showed how to send the location and google map image message via the Line Notify agent.
- * The callback function and sending result can be assigned
- * 
-*/
+ * This example showed how to send the Line notify message via Ethernet.
+ * This example is for ESP8266 and ENC28J60 Ethernet module.
+ */
 
-#if defined(ESP32)
-#include <WiFi.h>
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
-#endif
+/**
+ *
+ * The ENC28J60 Ethernet module and ESP8266 board, SPI port wiring connection.
+ *
+ * ESP8266 (Wemos D1 Mini or NodeMCU)        ENC28J60
+ *
+ * GPIO12 (D6) - MISO                        SO
+ * GPIO13 (D7) - MOSI                        SI
+ * GPIO14 (D5) - SCK                         SCK
+ * GPIO16 (D0) - CS                          CS
+ * GND                                       GND
+ * 3V3                                       VCC
+ *
+ */
+
+#include <ENC28J60lwIP.h>
+//#include <W5100lwIP.h>
+//#include <W5500lwIP.h>
+
 #include <ESP_Line_Notify.h>
 
-//Demo image data
-#include "image.h"
-
-/* Set your WiFI AP credential */
-#define WIFI_SSID "WIFI_AP"
-#define WIFI_PASSWORD "WIFI_PASSWORD"
-
 /* Define the LineNotifyClient object */
-LineNotifyClient client;
+LineNotifyClient line;
 
 /* Function to print the sending result via Serial (optional) */
 void printRessult(LineNotifySendingResult result);
@@ -38,70 +45,75 @@ void printRessult(LineNotifySendingResult result);
 /* The sending callback function (optional) */
 void sendingCallback(LineNotifySendingResult result);
 
+#define ETH_CS_PIN 16 // D0
+
+ENC28J60lwIP eth(ETH_CS_PIN);
+// Wiznet5100lwIP eth(ETH_CS_PIN);
+// Wiznet5500lwIP eth(ETH_CS_PIN);
+
+unsigned long sendMessagePrevMillis = 0;
+
+void sendMessage()
+{
+    LineNotify.spi_ethernet_module.enc28j60 = &eth;
+
+    line.reconnect_wifi = true;
+
+    Serial.println("Sending Line Notify message...");
+
+    line.token = "Your Line Notify Access Token";
+    line.message = "Hello world";
+
+    LineNotifySendingResult result = LineNotify.send(line);
+
+    // Print the sending result
+    printRessult(result);
+}
+
 void setup()
 {
 
     Serial.begin(115200);
-
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    while (WiFi.status() != WL_CONNECTED)
+    Serial.println();
+   
+#if defined(ESP8266)
+    SPI.begin();
+    SPI.setClockDivider(SPI_CLOCK_DIV4); // 4 MHz?
+    SPI.setBitOrder(MSBFIRST);
+    SPI.setDataMode(SPI_MODE0);
+    eth.setDefault(); // use ethernet for default route
+    if (!eth.begin())
     {
-        Serial.print(".");
-        delay(200);
+        Serial.println("ethernet hardware not found ... sleeping");
+        while (1)
+        {
+            delay(1000);
+        }
     }
-    Serial.println("");
-    Serial.println("WiFi connected.");
-    Serial.println("IP address: ");
-    Serial.println(WiFi.localIP());
-
-    client.reconnect_wifi = true;
-
-    Serial.println("Sending Line Notify message...");
-
-    client.token = "Your Line Notify Access Token";
-    client.message = "Hello world";
-
-    /** To send message without user notification
-     * 
-     client.notification_disabled = true;
-
-    */
-
-    client.message = "Location";
-
-    client.gmap.zoom = 18;
-    client.gmap.map_type = "satellite";          //roadmap or satellite
-    client.gmap.center = "40.718217,-73.998284"; //Places or Latitude, Longitude
-
-    /** To send the map image, Google Map Static API must be enable
-     * 
-     * To enable Map Static API
-     * https://console.cloud.google.com/apis/library/static-maps-backend.googleapis.com
-     * 
-     * To create the API key
-     * https://developers.google.com/maps/documentation/javascript/get-api-key
-     
-
-     client.gmap.google_api_key = "Your API Key";
-     client.gmap.size = "640x6400";//size of map image in pixels (widthxheight), 640x640 is maximum
-     client.gmap.markers = "color:green|label:P|40.718217,-73.998284"; //the marker in static map image: color, label, //Latitude, Longitude
-
-    */
-
-    /** To assiggn the callback function
-     * 
-     client.sending_callback = sendingCallback;
-
-    */
-
-    LineNotifySendingResult result = LineNotify.send(client);
-
-    //Print the sending result
-    printRessult(result);
+    else
+    {
+        Serial.print("connecting ethernet");
+        while (!eth.connected())
+        {
+            Serial.print(".");
+            delay(1000);
+        }
+    }
+    Serial.println();
+    Serial.print("ethernet IP address: ");
+    Serial.println(eth.localIP());
+#endif
 }
 
 void loop()
 {
+#if defined(ESP8266)
+    if (millis() - sendMessagePrevMillis > 30000 || sendMessagePrevMillis == 0)
+    {
+        sendMessagePrevMillis = millis();
+        sendMessage();
+    }
+#endif
 }
 
 /* Function to print the sending result via Serial */

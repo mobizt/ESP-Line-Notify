@@ -1,19 +1,19 @@
 /**
  * Created by K. Suwatchai (Mobizt)
- * 
- * Email: k_suwatchai@hotmail.com
- * 
- * Github: https://github.com/mobizt
- * 
- * Copyright (c) 2021 mobizt
  *
-*/
+ * Email: k_suwatchai@hotmail.com
+ *
+ * Github: https://github.com/ESP-Line-Notify
+ *
+ * Copyright (c) 2022 mobizt
+ *
+ */
 
 /**
  * This example showed how to send the notified message via the Line Notify agent.
  * The callback function and sending result can be assigned
- * 
-*/
+ *
+ */
 
 #if defined(ESP32)
 #include <WiFi.h>
@@ -22,7 +22,10 @@
 #endif
 #include <ESP_Line_Notify.h>
 
-//Demo image data
+// For SD card configuration and mounting
+// #include <SDHelper.h> // See src/SDHelper.h
+
+// Demo image data
 #include "image.h"
 
 /* Set your WiFI AP credential */
@@ -30,7 +33,7 @@
 #define WIFI_PASSWORD "WIFI_PASSWORD"
 
 /* Define the LineNotifyClient object */
-LineNotifyClient client;
+LineNotifyClient line;
 
 /* Function to print the sending result via Serial (optional) */
 void printRessult(LineNotifySendingResult result);
@@ -54,64 +57,67 @@ void setup()
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 
-  client.reconnect_wifi = true;
+  line.reconnect_wifi = true;
 
   Serial.println("Sending Line Notify message...");
 
-  client.token = "Your Line Notify Access Token";
-  client.message = "Hello world";
+  line.token = "Your Line Notify Access Token";
+  line.message = "Hello world";
 
   /** To send message without user notification
-   
-    client.notification_disabled = true;
+
+    line.notification_disabled = true;
 
   */
 
   /** To send sticker
    * See https://devdocs.line.me/files/sticker_list.pdf for STKPKGID (Sticker Package ID).
    * See https://devdocs.line.me/files/sticker_list.pdf for STKID (Sticker ID).
-  
-    client.sticker.package_id = 2;
-    client.sticker.id = 157;
+
+    line.sticker.package_id = 2;
+    line.sticker.id = 157;
 
   */
 
   /** To send image from URL
-   
-    client.image.url = "https://cdn.pixabay.com/photo/2017/05/17/18/35/sewing-2321532_640.jpg";
+
+    line.image.url = "https://cdn.pixabay.com/photo/2017/05/17/18/35/sewing-2321532_640.jpg";
 
   */
 
   /** To send image from flash or memory
-   
-    client.image.data.blob = (uint8_t *)dummyImageData;
-    client.image.data.size = sizeof(dummyImageData);
-    client.image.data.file_name = "image.jpg";
+
+    line.image.data.blob = (uint8_t *)dummyImageData;
+    line.image.data.size = sizeof(dummyImageData);
+    line.image.data.file_name = "image.jpg";
 
   */
 
   /** To send image from file systems (flash or SD)
-   * 
+   *
    * The SPIFFS and SD file systems are enabled by default.
-   * To use other File systems, edit the FS_Config.h to include the header files 
+   * To use other File systems, edit the FS_Config.h to include the header files
    * of File systems and defined the machro DEFAULT_FLASH_FS and DEFAULT_SD_FS with the class of File systems.
 
-   
-   client.image.file.path = "/test.jpg";
-   client.image.file.storage_type = LineNotify_Storage_Type_Flash; // LineNotify_Storage_Type_Flash or LineNotify_Storage_Type_SD
-   client.image.file.name = "test.jpg";
+
+   line.image.file.path = "/test.jpg";
+   line.image.file.storage_type = LineNotify_Storage_Type_Flash; // LineNotify_Storage_Type_Flash or LineNotify_Storage_Type_SD
+   line.image.file.name = "test.jpg";
+
+  * Mount SD card.
+   SD_Card_Mounting(); // See src/SDHelper.h
 
   */
 
   /** To assiggn the callback function
-   
-    client.sendingg_callback = sendingCallback;
+
+    line.sending_callback = sendingCallback;
 
   */
 
-  LineNotifySendingResult result = LineNotify.send(client);
+  LineNotifySendingResult result = LineNotify.send(line);
 
-  //Print the sending result
+  // Print the sending result
   printRessult(result);
 }
 

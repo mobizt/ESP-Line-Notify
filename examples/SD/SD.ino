@@ -10,10 +10,10 @@
  */
 
 /**
- * This example showed how to send the location and google map image message via the Line Notify agent.
+ * This example showed how to send the notified message via the Line Notify agent.
  * The callback function and sending result can be assigned
- * 
-*/
+ *
+ */
 
 #if defined(ESP32)
 #include <WiFi.h>
@@ -22,15 +22,15 @@
 #endif
 #include <ESP_Line_Notify.h>
 
-//Demo image data
-#include "image.h"
+// For SD card configuration and mounting
+#include <SDHelper.h> // See src/SDHelper.h
 
 /* Set your WiFI AP credential */
 #define WIFI_SSID "WIFI_AP"
 #define WIFI_PASSWORD "WIFI_PASSWORD"
 
 /* Define the LineNotifyClient object */
-LineNotifyClient client;
+LineNotifyClient line;
 
 /* Function to print the sending result via Serial (optional) */
 void printRessult(LineNotifySendingResult result);
@@ -54,49 +54,26 @@ void setup()
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
 
-    client.reconnect_wifi = true;
+    line.reconnect_wifi = true;
 
     Serial.println("Sending Line Notify message...");
 
-    client.token = "Your Line Notify Access Token";
-    client.message = "Hello world";
+    line.token = "Your Line Notify Access Token";
+    line.message = "Hello world";
 
-    /** To send message without user notification
-     * 
-     client.notification_disabled = true;
 
-    */
+    line.image.file.path = "/test.jpg";
+    line.image.file.storage_type = LineNotify_Storage_Type_SD; // LineNotify_Storage_Type_Flash or LineNotify_Storage_Type_SD
+    line.image.file.name = "test.jpg";
 
-    client.message = "Location";
+    line.sending_callback = sendingCallback;
 
-    client.gmap.zoom = 18;
-    client.gmap.map_type = "satellite";          //roadmap or satellite
-    client.gmap.center = "40.718217,-73.998284"; //Places or Latitude, Longitude
+    // Mount SD card.
+    SD_Card_Mounting(); // See src/SDHelper.h
 
-    /** To send the map image, Google Map Static API must be enable
-     * 
-     * To enable Map Static API
-     * https://console.cloud.google.com/apis/library/static-maps-backend.googleapis.com
-     * 
-     * To create the API key
-     * https://developers.google.com/maps/documentation/javascript/get-api-key
-     
+    LineNotifySendingResult result = LineNotify.send(line);
 
-     client.gmap.google_api_key = "Your API Key";
-     client.gmap.size = "640x6400";//size of map image in pixels (widthxheight), 640x640 is maximum
-     client.gmap.markers = "color:green|label:P|40.718217,-73.998284"; //the marker in static map image: color, label, //Latitude, Longitude
-
-    */
-
-    /** To assiggn the callback function
-     * 
-     client.sending_callback = sendingCallback;
-
-    */
-
-    LineNotifySendingResult result = LineNotify.send(client);
-
-    //Print the sending result
+    // Print the sending result
     printRessult(result);
 }
 

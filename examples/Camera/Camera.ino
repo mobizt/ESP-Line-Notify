@@ -3,9 +3,9 @@
  * 
  * Email: k_suwatchai@hotmail.com
  * 
- * Github: https://github.com/mobizt
+ * Github: https://github.com/ESP-Line-Notify
  * 
- * Copyright (c) 2021 mobizt
+ * Copyright (c) 2022 mobizt
  *
 */
 
@@ -103,7 +103,7 @@ void setup()
 
   /** To assiggn the callback function
    
-    client.sendingg_callback = sendingCallback;
+    client.sending_callback = sendingCallback;
 
   */
 
