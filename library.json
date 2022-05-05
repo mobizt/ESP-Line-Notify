@@ -5,7 +5,7 @@
   "description": "Line Notify Library for ESP8266 and ESP32. Send the Line notification message, sticker, map and images. The library also supported other Arduino devices using Clients interfaces e.g. WiFiClient, EthernetClient, and GSMClient.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mobizt/ESP-Line-Nptify.git"
+    "url": "https://github.com/mobizt/ESP-Line-Notify.git"
   },
   "authors": [{
     "name": "Mobizt",
