@@ -1,6 +1,6 @@
 {
   "name": "ESP Line Notify",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "keywords": "communication, REST, esp32, esp8266, arduino",
   "description": "Line Notify Library for ESP8266 and ESP32. Send the Line notification message, sticker, map and images. The library also supported other Arduino devices using Clients interfaces e.g. WiFiClient, EthernetClient, and GSMClient.",
   "repository": {
