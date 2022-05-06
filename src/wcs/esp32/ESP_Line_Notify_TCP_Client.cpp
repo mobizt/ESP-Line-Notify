@@ -1,7 +1,7 @@
 /**
- * Firebase TCP Client v1.1.19
+ * ESP Line Notify TCP Client v1.0.0
  *
- * Created February 20, 2022
+ * Created May 6, 2022
  *
  * The MIT License (MIT)
  * Copyright (c) 2022 K. Suwatchai (Mobizt)

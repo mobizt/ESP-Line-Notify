@@ -85,7 +85,7 @@ static const char esp_idf_branch_str[] PROGMEM = "release/v";
 
 #endif
 
-typedef struct fb_esp_spi_ethernet_module_t
+typedef struct esp_line_notify_spi_ethernet_module_t
 {
 #if defined(ESP8266) && defined(ESP8266_CORE_SDK_V3_X_X)
 #ifdef INC_ENC28J60_LWIP

@@ -1,7 +1,7 @@
 /**
- * The custom TCP Client Class v1.0.0
+ * ESP Line Notify TCP Client v1.0.0
  *
- * Created February 10, 2022
+ * Created May 6, 2022
  *
  * The MIT License (MIT)
  * Copyright (c) 2022 K. Suwatchai (Mobizt)
