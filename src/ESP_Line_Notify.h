@@ -1,7 +1,7 @@
 /**
- * LINE Notify Arduino Library for Arduino version 2.0.0
+ * LINE Notify Arduino Library for Arduino version 2.1.1
  * 
- * Created May 5, 2022
+ * Created May 30, 2023
  *
  * 
  * The MIT License (MIT)

@@ -2,6 +2,7 @@
 #define ESP_LINE_NOTIFY_CONST_H
 
 #include <Arduino.h>
+#include "FS_Config.h"
 
 #include "wcs/ESP_Line_Notify_Clients.h"
 
